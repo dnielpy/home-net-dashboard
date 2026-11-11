@@ -1,4 +1,10 @@
-export type HopName = "router" | "nano" | "provider" | "internet";
+export const HOP_NAMES = ["router", "nano", "provider", "internet"] as const;
+
+export type HopName = (typeof HOP_NAMES)[number];
+
+export function isHopName(name: string): name is HopName {
+  return (HOP_NAMES as readonly string[]).includes(name);
+}
 
 export const HOP_LABELS: Record<HopName, string> = {
   router: "Router",

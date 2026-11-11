@@ -29,16 +29,18 @@ export type Hop = {
   latency_ms: number | null;
 };
 
-export type LiveConnection = {
-  checked_at: string;
-  online: boolean;
-  break_at: string | null;
-  hops: Hop[];
-};
+export type HopInfo = { name: string; ip: string };
 
-export async function getLiveConnection(): Promise<LiveConnection> {
-  await connection();
-  return getJson("/connection/live");
+export async function getHops(): Promise<HopInfo[]> {
+  return getJson("/connection/hops");
+}
+
+export function liveHopApiPath(name: string): string {
+  return `/connection/live/${encodeURIComponent(name)}`;
+}
+
+export async function getLiveHop(name: string): Promise<Hop> {
+  return getJson(liveHopApiPath(name));
 }
 
 export type Period = { start: string; end: string; duration_hours: number };

@@ -1,10 +1,7 @@
 import { Suspense } from "react";
 
-import { AutoRefresh } from "@/components/auto-refresh";
 import { ChainSkeleton } from "@/components/chain-skeleton";
 import { LiveConnectionView } from "@/components/live-connection";
-
-const REFRESH_INTERVAL_MS = 10_000;
 
 export default function Home() {
   return (
@@ -13,7 +10,6 @@ export default function Home() {
       <Suspense fallback={<ChainSkeleton />}>
         <LiveConnectionView />
       </Suspense>
-      <AutoRefresh intervalMs={REFRESH_INTERVAL_MS} />
     </main>
   );
 }

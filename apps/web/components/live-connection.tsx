@@ -1,11 +1,11 @@
 import { ConnectionChain } from "@/components/connection-chain/connection-chain";
 import { StatusMessage } from "@/components/status-message";
-import { ApiUnavailableError, getLiveConnection, type LiveConnection } from "@/lib/api";
+import { ApiUnavailableError, getHops, type HopInfo } from "@/lib/api";
 
 export async function LiveConnectionView() {
-  let live: LiveConnection;
+  let hops: HopInfo[];
   try {
-    live = await getLiveConnection();
+    hops = await getHops();
   } catch (error) {
     if (error instanceof ApiUnavailableError) {
       return <StatusMessage title="API unavailable" body="Could not load data from the API. Make sure it is running." />;
@@ -13,5 +13,5 @@ export async function LiveConnectionView() {
     throw error;
   }
 
-  return <ConnectionChain live={live} />;
+  return <ConnectionChain hops={hops} />;
 }

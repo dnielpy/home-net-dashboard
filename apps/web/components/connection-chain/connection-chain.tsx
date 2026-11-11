@@ -1,14 +1,39 @@
+"use client";
+
 import { Fragment } from "react";
 
 import { HopLink } from "@/components/connection-chain/hop-link";
 import { HopNode } from "@/components/connection-chain/hop-node";
-import { buildHopViews, linkState } from "@/components/connection-chain/hop-state";
-import type { LiveConnection } from "@/lib/api";
-import { hopLabel } from "@/lib/hops";
+import { buildHopViews, linkState, sweepResult } from "@/components/connection-chain/hop-state";
+import { useChainSweep } from "@/components/connection-chain/use-chain-sweep";
+import type { HopInfo } from "@/lib/api";
 
-export function ConnectionChain({ live }: { live: LiveConnection }) {
-  const hops = buildHopViews(live.hops);
-  const internet = live.hops.at(-1);
+export function ConnectionChain({ hops }: { hops: HopInfo[] }) {
+  const { probes, phase, sweep, apiError } = useChainSweep(hops);
+  const views = buildHopViews(hops, probes);
+  const done = phase.kind === "done";
+  const { online, breakAt } = sweepResult(views);
+  const internet = views.at(-1);
+
+  let headline;
+  if (!done) {
+    headline = <span className="text-zinc-900 dark:text-zinc-50">Checking {views[phase.index]?.label}…</span>;
+  } else if (apiError) {
+    headline = <span className="text-zinc-900 dark:text-zinc-50">API unavailable</span>;
+  } else if (online) {
+    headline = (
+      <span className="text-zinc-900 dark:text-zinc-50">
+        <span key={sweep} className="text-flash">
+          Online
+        </span>
+        {internet?.latency_ms != null && (
+          <span className="font-normal text-zinc-500 dark:text-zinc-400"> · {internet.latency_ms.toFixed(0)} ms to internet</span>
+        )}
+      </span>
+    );
+  } else {
+    headline = <span className="text-[#d03b3b]">Cut at {breakAt?.label}</span>;
+  }
 
   return (
     <section aria-labelledby="connection-chain-title" className="flex w-full max-w-4xl flex-col items-center gap-10">
@@ -16,26 +41,23 @@ export function ConnectionChain({ live }: { live: LiveConnection }) {
         <h2 id="connection-chain-title" className="text-sm text-zinc-500 dark:text-zinc-400">
           Connection
         </h2>
-        {live.online ? (
-          <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-            Online
-            {internet?.latency_ms != null && (
-              <span className="font-normal text-zinc-500 dark:text-zinc-400"> · {internet.latency_ms.toFixed(0)} ms to internet</span>
-            )}
-          </p>
-        ) : (
-          <p className="mt-1 text-2xl font-semibold text-[#d03b3b]">Cut at {hopLabel(live.break_at)}</p>
-        )}
+        <p aria-live="polite" className="mt-1 text-2xl font-semibold">
+          {headline}
+        </p>
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          3 seconds of pings per hop, the average is the latency
+        </p>
       </div>
 
       <ol aria-label="Connection chain" className="flex w-full flex-col md:flex-row md:items-start">
-        {hops.map((hop, index) => (
+        {views.map((hop, index) => (
           <Fragment key={hop.name}>
             {index > 0 && <HopLink state={linkState(hop)} />}
-            <HopNode hop={hop} />
+            <HopNode hop={hop} sweep={sweep} celebrate={done && online && !apiError} />
           </Fragment>
         ))}
       </ol>
+
     </section>
   );
 }
