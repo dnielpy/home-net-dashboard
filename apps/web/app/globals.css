@@ -24,3 +24,42 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+@keyframes link-flow {
+  to {
+    background-position: 0 24px;
+  }
+}
+
+@keyframes link-flow-x {
+  to {
+    background-position: 24px 0;
+  }
+}
+
+/* Moving stripes on a link that carries traffic: downward on mobile, left to right from md up */
+.link-flow {
+  background-image: repeating-linear-gradient(180deg, rgb(255 255 255 / 0.6) 0 8px, transparent 8px 24px);
+  animation: link-flow 1.2s linear infinite;
+}
+
+.link-cut {
+  background-image: repeating-linear-gradient(180deg, #d03b3b 0 6px, transparent 6px 12px);
+}
+
+@media (min-width: 48rem) {
+  .link-flow {
+    background-image: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.6) 0 8px, transparent 8px 24px);
+    animation-name: link-flow-x;
+  }
+
+  .link-cut {
+    background-image: repeating-linear-gradient(90deg, #d03b3b 0 6px, transparent 6px 12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link-flow {
+    animation: none;
+  }
+}
