@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { AutoRefresh } from "@/components/auto-refresh";
+import { BandwidthStats } from "@/components/stats/bandwidth-stats";
 import { ChartCardSkeleton } from "@/components/stats/chart-card-skeleton";
 import { ConnectionStatusCard } from "@/components/stats/connection-status-card";
 import { HistoryStats } from "@/components/stats/history-stats";
@@ -25,6 +26,9 @@ export default function StatsPage({ searchParams }: PageProps<"/stats">) {
       </Suspense>
       <Suspense fallback={<ChartCardSkeleton height={220} />}>
         <OutageStats searchParams={searchParams} />
+      </Suspense>
+      <Suspense fallback={<ChartCardSkeleton height={380} />}>
+        <BandwidthStats searchParams={searchParams} />
       </Suspense>
       <AutoRefresh intervalMs={REFRESH_INTERVAL_MS} />
     </main>
