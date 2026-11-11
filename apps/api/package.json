@@ -1,0 +1,11 @@
+{
+  "name": "api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "uv run uvicorn app.main:app --reload --port 3011",
+    "test": "uv run pytest",
+    "db:migrate": "uv run alembic upgrade head",
+    "db:seed": "uv run python -m app.seed"
+  }
+}

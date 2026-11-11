@@ -1,0 +1,28 @@
+[project]
+name = "home-net-dashboard-api"
+version = "0.1.0"
+description = "API to monitor the home network link: router, Nano Loco 5AC, provider and internet"
+readme = "README.md"
+authors = [
+    { name = "dnielpy", email = "dnielquesada@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.20.1",
+    "asyncpg>=0.32.0",
+    "fastapi>=0.162.4",
+    "httpx>=0.28.1",
+    "icmplib>=3.0.4",
+    "python-dotenv>=1.2.4",
+    "sqlalchemy[asyncio]>=2.1.8",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.16.0",
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
