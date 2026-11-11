@@ -6,10 +6,11 @@ import { HopLink } from "@/components/connection-chain/hop-link";
 import { HopNode } from "@/components/connection-chain/hop-node";
 import { buildHopViews, linkState, sweepResult } from "@/components/connection-chain/hop-state";
 import { useChainSweep } from "@/components/connection-chain/use-chain-sweep";
+import { RefreshIcon } from "@/components/icons/refresh-icon";
 import type { HopInfo } from "@/lib/api";
 
 export function ConnectionChain({ hops }: { hops: HopInfo[] }) {
-  const { probes, phase, sweep, apiError } = useChainSweep(hops);
+  const { probes, phase, sweep, apiError, restart } = useChainSweep(hops);
   const views = buildHopViews(hops, probes);
   const done = phase.kind === "done";
   const { online, breakAt } = sweepResult(views);
@@ -58,6 +59,15 @@ export function ConnectionChain({ hops }: { hops: HopInfo[] }) {
         ))}
       </ol>
 
+      <button
+        type="button"
+        onClick={restart}
+        disabled={!done}
+        className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+      >
+        <RefreshIcon className={`h-4 w-4 ${done ? "" : "animate-spin"}`} />
+        {done ? "Check again" : "Checking…"}
+      </button>
     </section>
   );
 }

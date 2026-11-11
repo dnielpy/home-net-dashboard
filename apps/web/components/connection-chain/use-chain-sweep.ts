@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { Probe } from "@/components/connection-chain/hop-state";
 import type { Hop, HopInfo } from "@/lib/api";
@@ -43,10 +43,14 @@ function initialSweep(hops: HopInfo[], sweep: number): ChainSweep {
   };
 }
 
-/** Walks the chain hop by hop once when mounted. */
-export function useChainSweep(hops: HopInfo[]): ChainSweep {
+/** Walks the chain hop by hop once when mounted, and again every time `restart` is called. */
+export function useChainSweep(hops: HopInfo[]): ChainSweep & { restart: () => void } {
   const [state, setState] = useState<ChainSweep>(() => initialSweep(hops, 0));
   const { sweep } = state;
+
+  const restart = useCallback(() => {
+    setState((current) => (current.phase.kind === "done" ? initialSweep(hops, current.sweep + 1) : current));
+  }, [hops]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -80,5 +84,5 @@ export function useChainSweep(hops: HopInfo[]): ChainSweep {
     return () => controller.abort();
   }, [hops, sweep]);
 
-  return state;
+  return { ...state, restart };
 }
