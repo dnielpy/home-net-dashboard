@@ -1,0 +1,9 @@
+.git
+**/node_modules
+**/.next
+**/.turbo
+**/.env
+**/.env.local
+**/.env.production
+apps/api/*
+!apps/api/package.json

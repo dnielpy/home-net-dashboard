@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+
+fetchRetries: 8
+fetchRetryFactor: 2
+fetchRetryMintimeout: 20000
+fetchRetryMaxtimeout: 180000
+fetchTimeout: 300000
+networkConcurrency: 4
