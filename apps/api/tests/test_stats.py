@@ -95,3 +95,14 @@ def test_connection_status(monkeypatch: pytest.MonkeyPatch, fake_session) -> Non
         "break_at": "nano",
     }
     assert body["last_online_period"] is None
+
+
+@pytest.mark.parametrize("bucket", ["10min", "hour", "day"])
+def test_bandwidth_accepts_every_bucket(monkeypatch: pytest.MonkeyPatch, fake_session, bucket: str) -> None:
+    async def fake_list_bandwidth(session, since, requested):
+        assert requested == bucket
+        return []
+
+    monkeypatch.setattr(traffic, "list_bandwidth", fake_list_bandwidth)
+
+    assert client.get(f"/bandwidth?hours=1&bucket={bucket}").status_code == 200

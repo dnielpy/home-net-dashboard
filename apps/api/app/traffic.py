@@ -3,13 +3,13 @@ from collections.abc import Sequence
 from datetime import datetime, timezone
 from typing import Literal
 
-from sqlalchemy import Row, func, select
+from sqlalchemy import Row, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import nano, repository
 from app.models import TrafficSample
 
-Bucket = Literal["hour", "day"]
+Bucket = Literal["10min", "hour", "day"]
 
 DEFAULT_TIMEZONE = "America/Havana"
 
@@ -53,7 +53,12 @@ async def collect_traffic(session: AsyncSession) -> TrafficSample:
 
 async def list_bandwidth(session: AsyncSession, since: datetime, bucket: Bucket) -> Sequence[Row]:
     tz = get_timezone()
-    start = func.timezone(tz, func.date_trunc(bucket, func.timezone(tz, TrafficSample.date))).label("start")
+    local = func.timezone(tz, TrafficSample.date)
+    if bucket == "10min":
+        truncated = func.date_bin(literal_column("interval '10 minutes'"), local, literal_column("timestamp '2000-01-01'"))
+    else:
+        truncated = func.date_trunc(bucket, local)
+    start = func.timezone(tz, truncated).label("start")
     query = (
         select(start, func.sum(TrafficSample.rx_delta).label("rx_bytes"), func.sum(TrafficSample.tx_delta).label("tx_bytes"))
         .where(TrafficSample.date >= since)

@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -112,11 +111,13 @@ async def list_outages(
 @router.get(
     "/bandwidth",
     response_model=BandwidthOut,
-    description="Bytes downloaded (rx) and uploaded (tx) through the Nano in the last `hours`, per hour or per day.",
+    description=(
+        "Bytes downloaded (rx) and uploaded (tx) through the Nano in the last `hours`, per 10 minutes, hour or day."
+    ),
 )
 async def bandwidth(
     hours: float = Query(24, gt=0, le=720, description="How many hours back to include."),
-    bucket: Literal["hour", "day"] = Query("hour", description="Group the traffic per hour or per day."),
+    bucket: traffic.Bucket = Query("hour", description="Group the traffic per 10 minutes, per hour or per day."),
     session: AsyncSession = Depends(get_session),
 ) -> BandwidthOut:
     rows = await traffic.list_bandwidth(session, _since(hours), bucket)
