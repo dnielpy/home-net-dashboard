@@ -3,6 +3,11 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+class HopInfoOut(BaseModel):
+    name: str
+    ip: str
+
+
 class HopOut(BaseModel):
     name: str
     ip: str

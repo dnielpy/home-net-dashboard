@@ -54,3 +54,23 @@ def test_ping_hops_uses_configured_ips(monkeypatch: pytest.MonkeyPatch) -> None:
     assert [hop.latency_ms for hop in chain.hops] == [2.35, 2.35, 2.35, None]
     assert chain.online is False
     assert chain.break_at == "internet"
+
+
+def test_ping_hop_averages_about_three_seconds_of_pings(monkeypatch: pytest.MonkeyPatch) -> None:
+    sent = {}
+
+    async def fake_ping(address: str, **kwargs) -> FakeHost:
+        sent.update(address=address, **kwargs)
+        return FakeHost(address, True, 4.567)
+
+    monkeypatch.setattr(pinger, "async_ping", fake_ping)
+
+    result = asyncio.run(pinger.ping_hop("nano"))
+
+    assert (result.ip, result.ok, result.latency_ms) == ("10.40.43.99", True, 4.57)
+    assert (sent["count"] - 1) * sent["interval"] == 3
+
+
+def test_ping_unknown_hop() -> None:
+    with pytest.raises(pinger.UnknownHopError):
+        asyncio.run(pinger.ping_hop("modem"))
