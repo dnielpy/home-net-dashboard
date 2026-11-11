@@ -43,6 +43,32 @@ export async function getLiveHop(name: string): Promise<Hop> {
   return getJson(liveHopApiPath(name));
 }
 
+export type LatestCheck = {
+  checked_at: string;
+  online: boolean;
+  break_at: string | null;
+  hops: Hop[];
+};
+
+/** The latest check stored by the API's background job, or null before the first one. */
+export async function getLatestCheck(): Promise<LatestCheck | null> {
+  await connection();
+  return getJson("/connection/latest", { cache: "no-store" });
+}
+
+export type LatestSpeedTest = {
+  measured_at: string;
+  download_mbps: number;
+  ping_ms: number | null;
+  duration_ms: number | null;
+  server_location: string | null;
+  client_location: string | null;
+};
+
+export async function getLatestSpeedTest(): Promise<LatestSpeedTest | null> {
+  return getJson("/speed-test/latest", { cache: "no-store" });
+}
+
 export type Period = { start: string; end: string; duration_hours: number };
 
 export type OutagePeriod = Period & { break_at: string | null };

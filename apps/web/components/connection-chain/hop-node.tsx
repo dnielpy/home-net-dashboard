@@ -3,11 +3,13 @@ import { HOP_STATE_STYLES, type HopView } from "@/components/connection-chain/ho
 type HopNodeProps = {
   hop: HopView;
   sweep: number;
+  // False when the result is restored from an earlier visit: no flashes
+  animate: boolean;
   // The sweep reached internet: every hop that answered flashes together
   celebrate: boolean;
 };
 
-export function HopNode({ hop, sweep, celebrate }: HopNodeProps) {
+export function HopNode({ hop, sweep, animate, celebrate }: HopNodeProps) {
   const styles = HOP_STATE_STYLES[hop.state];
 
   return (
@@ -17,8 +19,8 @@ export function HopNode({ hop, sweep, celebrate }: HopNodeProps) {
     >
       <div className="relative flex h-16 w-16 shrink-0 items-center justify-center md:h-20 md:w-20">
         {/* Remounts on every sweep so the flash plays each time the pings reach the hop */}
-        {hop.state === "ok" && <span key={sweep} aria-hidden className="hop-flash absolute inset-0 rounded-full" />}
-        {celebrate && hop.state === "ok" && (
+        {animate && hop.state === "ok" && <span key={sweep} aria-hidden className="hop-flash absolute inset-0 rounded-full" />}
+        {animate && celebrate && hop.state === "ok" && (
           <span key={`${sweep}-online`} aria-hidden className="hop-flash absolute inset-0 rounded-full" />
         )}
         {hop.state === "pinging" && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 import { HopLink } from "@/components/connection-chain/hop-link";
 import { HopNode } from "@/components/connection-chain/hop-node";
@@ -8,24 +8,44 @@ import { buildHopViews, linkState, sweepResult } from "@/components/connection-c
 import { useChainSweep } from "@/components/connection-chain/use-chain-sweep";
 import { RefreshIcon } from "@/components/icons/refresh-icon";
 import { LiveCards } from "@/components/live-cards/live-cards";
-import type { HopInfo } from "@/lib/api";
+import type { HopInfo, LatestCheck, LatestSpeedTest } from "@/lib/api";
 
-export function ConnectionChain({ hops }: { hops: HopInfo[] }) {
-  const { probes, phase, sweep, apiError, restart } = useChainSweep(hops);
+function minutesAgo(ms: number): string {
+  const minutes = Math.floor(ms / 60_000);
+  return minutes < 1 ? "just now" : `${minutes} min ago`;
+}
+
+type ConnectionChainProps = {
+  hops: HopInfo[];
+  latest: LatestCheck | null;
+  latestSpeedTest: LatestSpeedTest | null;
+};
+
+export function ConnectionChain({ hops, latest, latestSpeedTest }: ConnectionChainProps) {
+  const { probes, phase, sweep, apiError, checkedAt, restored, restart } = useChainSweep(hops, latest);
   const views = buildHopViews(hops, probes);
   const done = phase.kind === "done";
+  const [now, setNow] = useState<number | null>(null);
+
+  // Keeps "checked … ago" current without reading the clock while rendering
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, [checkedAt]);
   const { online, breakAt } = sweepResult(views);
   const internet = views.at(-1);
 
   let headline;
-  if (!done) {
+  if (phase.kind === "pinging") {
     headline = <span className="text-zinc-900 dark:text-zinc-50">Checking {views[phase.index]?.label}…</span>;
   } else if (apiError) {
     headline = <span className="text-zinc-900 dark:text-zinc-50">API unavailable</span>;
   } else if (online) {
     headline = (
       <span className="text-zinc-900 dark:text-zinc-50">
-        <span key={sweep} className="text-flash">
+        <span key={sweep} className={restored ? undefined : "text-flash"}>
           Online
         </span>
         {internet?.latency_ms != null && (
@@ -46,8 +66,10 @@ export function ConnectionChain({ hops }: { hops: HopInfo[] }) {
         <p aria-live="polite" className="mt-1 text-2xl font-semibold">
           {headline}
         </p>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          3 seconds of pings per hop, the average is the latency
+        <p className="mt-1 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
+          {done && checkedAt !== null && now !== null
+            ? `Checked ${minutesAgo(now - checkedAt)} · the server checks every 30 seconds`
+            : "3 seconds of pings per hop, the average is the latency"}
         </p>
       </div>
 
@@ -55,7 +77,7 @@ export function ConnectionChain({ hops }: { hops: HopInfo[] }) {
         {views.map((hop, index) => (
           <Fragment key={hop.name}>
             {index > 0 && <HopLink state={linkState(hop)} />}
-            <HopNode hop={hop} sweep={sweep} celebrate={done && online && !apiError} />
+            <HopNode hop={hop} sweep={sweep} animate={!restored} celebrate={done && online && !apiError} />
           </Fragment>
         ))}
       </ol>
@@ -70,7 +92,7 @@ export function ConnectionChain({ hops }: { hops: HopInfo[] }) {
         {done ? "Check again" : "Checking…"}
       </button>
 
-      <LiveCards key={sweep} visible={done && online && !apiError} />
+      <LiveCards key={sweep} visible={done && online && !apiError} speedTest={restored ? latestSpeedTest : null} />
     </section>
   );
 }

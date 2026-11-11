@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { Probe } from "@/components/connection-chain/hop-state";
-import type { Hop, HopInfo } from "@/lib/api";
+import type { Hop, HopInfo, LatestCheck } from "@/lib/api";
 
 // Each hop takes at least this long, so the sweep can be followed by eye
 export const HOP_DURATION_MS = 3_000;
@@ -13,9 +13,12 @@ export type SweepPhase = { kind: "pinging"; index: number } | { kind: "done" };
 export type ChainSweep = {
   probes: Probe[];
   phase: SweepPhase;
-  // Bumps on every sweep so the arrival animations play again
+  // Bumps on every sweep so the arrival animations play again; 0 while showing the server's latest check
   sweep: number;
   apiError: boolean;
+  checkedAt: number | null;
+  // The result is the server's latest check, so nothing is animated
+  restored: boolean;
 };
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -34,25 +37,67 @@ async function pingHop(name: string, signal: AbortSignal): Promise<Hop | null> {
   }
 }
 
-function initialSweep(hops: HopInfo[], sweep: number): ChainSweep {
+function pendingProbes(hops: HopInfo[]): Probe[] {
+  return hops.map(() => ({ status: "pending" }));
+}
+
+function restoredProbes(hops: HopInfo[], check: LatestCheck): Probe[] | null {
+  const byName = new Map(check.hops.map((hop) => [hop.name, hop]));
+  if (!hops.every((hop) => byName.has(hop.name))) return null;
+  return hops.map((hop) => {
+    const { ok, latency_ms } = byName.get(hop.name)!;
+    return { status: "done", ok, latency_ms };
+  });
+}
+
+/** Starts from the server's latest check; only when there is none yet does it walk the chain on its own. */
+function initialSweep(hops: HopInfo[], latest: LatestCheck | null): ChainSweep {
+  const probes = latest ? restoredProbes(hops, latest) : null;
+  if (latest && probes) {
+    return {
+      probes,
+      phase: { kind: "done" },
+      sweep: 0,
+      apiError: false,
+      checkedAt: Date.parse(latest.checked_at),
+      restored: true,
+    };
+  }
   return {
-    probes: hops.map(() => ({ status: "pending" })),
+    probes: pendingProbes(hops),
     phase: { kind: "pinging", index: 0 },
-    sweep,
+    sweep: 1,
     apiError: false,
+    checkedAt: null,
+    restored: false,
   };
 }
 
-/** Walks the chain hop by hop once when mounted, and again every time `restart` is called. */
-export function useChainSweep(hops: HopInfo[]): ChainSweep & { restart: () => void } {
-  const [state, setState] = useState<ChainSweep>(() => initialSweep(hops, 0));
+/**
+ * Shows the server's latest check as it is, and walks the chain hop by hop (with its animations) only when
+ * `restart` is called.
+ */
+export function useChainSweep(hops: HopInfo[], latest: LatestCheck | null): ChainSweep & { restart: () => void } {
+  const [state, setState] = useState<ChainSweep>(() => initialSweep(hops, latest));
   const { sweep } = state;
 
   const restart = useCallback(() => {
-    setState((current) => (current.phase.kind === "done" ? initialSweep(hops, current.sweep + 1) : current));
+    setState((current) =>
+      current.phase.kind === "pinging"
+        ? current
+        : {
+            ...current,
+            probes: pendingProbes(hops),
+            phase: { kind: "pinging", index: 0 },
+            sweep: current.sweep + 1,
+            apiError: false,
+            restored: false,
+          },
+    );
   }, [hops]);
 
   useEffect(() => {
+    if (sweep === 0) return;
     const controller = new AbortController();
     const { signal } = controller;
 
@@ -77,7 +122,8 @@ export function useChainSweep(hops: HopInfo[]): ChainSweep & { restart: () => vo
         }));
       }
 
-      setState((current) => ({ ...current, phase: { kind: "done" }, apiError }));
+      const checkedAt = Date.now();
+      setState((current) => ({ ...current, phase: { kind: "done" }, apiError, checkedAt }));
     }
 
     run();
