@@ -1,4 +1,4 @@
-import type { BandwidthBar } from "@/components/stats/bandwidth-chart";
+import type { BandwidthBar } from "@/lib/bandwidth-series";
 import { formatBytes } from "@/lib/bytes-format";
 import { formatTooltipTime } from "@/lib/chart-time";
 

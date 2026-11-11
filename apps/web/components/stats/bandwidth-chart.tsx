@@ -1,143 +1,260 @@
+"use client";
+
+import { type KeyboardEvent, type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
+
 import { ChartLegend } from "@/components/stats/chart-legend";
-import type { BandwidthBucket, BandwidthPoint } from "@/lib/api";
+import type { BandwidthBucket } from "@/lib/api";
+import { type BandwidthBar, formatBucket } from "@/lib/bandwidth-series";
 import { byteTicks, formatBytes } from "@/lib/bytes-format";
 import { SERIES_COLORS } from "@/lib/chart-colors";
+import { formatTimeTick, timeTicks } from "@/lib/chart-time";
 
-const MAX_X_LABELS = 8;
+const HEIGHT = 280;
+const MARGIN = { top: 16, right: 72, bottom: 28, left: 64 };
+const MIN_LABEL_GAP = 14;
 
-export type BandwidthBar = { start: number; rx: number; tx: number };
+const SERIES = [
+  { key: "rx", label: "Download", color: SERIES_COLORS.download },
+  { key: "tx", label: "Upload", color: SERIES_COLORS.upload },
+] as const;
 
-function bucketStart(t: number, bucket: BandwidthBucket): number {
-  const date = new Date(t);
-  if (bucket === "day") date.setHours(0, 0, 0, 0);
-  else date.setMinutes(0, 0, 0);
-  return date.getTime();
-}
+type Point = { t: number; value: number };
 
-function nextBucket(t: number, bucket: BandwidthBucket): number {
-  const date = new Date(t);
-  if (bucket === "day") date.setDate(date.getDate() + 1);
-  else date.setHours(date.getHours() + 1);
-  return date.getTime();
-}
-
-/** One bar per hour or day in the range, including the ones without traffic. */
-export function buildBars(items: BandwidthPoint[], bucket: BandwidthBucket, from: number, to: number): BandwidthBar[] {
-  const byStart = new Map(items.map((item) => [Date.parse(item.start), item]));
-  const bars: BandwidthBar[] = [];
-  for (let t = bucketStart(from, bucket); t <= to; t = nextBucket(t, bucket)) {
-    const item = byStart.get(t);
-    bars.push({ start: t, rx: item?.rx_bytes ?? 0, tx: item?.tx_bytes ?? 0 });
+/** Splits a series where buckets have no traffic samples, so the line does not pretend there was no traffic. */
+function segmentsOf(bars: BandwidthBar[], key: "rx" | "tx"): Point[][] {
+  const segments: Point[][] = [];
+  let current: Point[] | null = null;
+  for (const bar of bars) {
+    if (!bar.hasData) {
+      current = null;
+      continue;
+    }
+    if (!current) {
+      current = [];
+      segments.push(current);
+    }
+    current.push({ t: (bar.start + bar.end) / 2, value: bar[key] });
   }
-  return bars;
+  return segments;
 }
 
-function formatBucket(t: number, bucket: BandwidthBucket, long = false): string {
-  const options: Intl.DateTimeFormatOptions =
-    bucket === "day"
-      ? { weekday: long ? "short" : undefined, day: "numeric", month: "short" }
-      : { day: long ? "numeric" : undefined, month: long ? "short" : undefined, hour: "2-digit", minute: "2-digit", hour12: false };
-  return new Intl.DateTimeFormat(undefined, options).format(t);
-}
+export function BandwidthChart({ bars, bucket, to }: { bars: BandwidthBar[]; bucket: BandwidthBucket; to: number }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState<number | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-export function BandwidthChart({ bars, bucket }: { bars: BandwidthBar[]; bucket: BandwidthBucket }) {
-  const ticks = byteTicks(Math.max(...bars.map((bar) => bar.rx + bar.tx)));
-  const top = ticks.at(-1)!;
-  const percent = (bytes: number) => `${(bytes / top) * 100}%`;
-  const labelEvery = Math.ceil(bars.length / MAX_X_LABELS);
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const from = bars[0].start;
+  const rangeMs = to - from;
+  const yTicks = useMemo(() => byteTicks(Math.max(0, ...bars.map((bar) => Math.max(bar.rx, bar.tx)))), [bars]);
+  const top = yTicks.at(-1) || 1;
+  const innerWidth = Math.max(0, (width ?? 0) - MARGIN.left - MARGIN.right);
+  const innerHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
+
+  const x = (t: number) => MARGIN.left + ((Math.min(t, to) - from) / rangeMs) * innerWidth;
+  const y = (value: number) => MARGIN.top + (1 - value / top) * innerHeight;
+
+  const series = useMemo(() => SERIES.map((item) => ({ ...item, segments: segmentsOf(bars, item.key) })), [bars]);
+  const dataIndexes = useMemo(() => bars.flatMap((bar, index) => (bar.hasData ? [index] : [])), [bars]);
+  const active = activeIndex === null ? null : bars[activeIndex];
+
+  const linePath = (segment: Point[]) =>
+    segment.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.t).toFixed(1)},${y(p.value).toFixed(1)}`).join("");
+
+  // Direct labels at the end of each line, pushed apart when they would overlap
+  const endLabels = series
+    .map((item) => ({ ...item, last: item.segments.at(-1)?.at(-1) }))
+    .filter((item): item is typeof item & { last: Point } => !!item.last)
+    .map((item) => ({ ...item, labelY: y(item.last.value) }));
+  if (endLabels.length === 2 && Math.abs(endLabels[0].labelY - endLabels[1].labelY) < MIN_LABEL_GAP) {
+    const [upper, lower] = endLabels[0].labelY <= endLabels[1].labelY ? endLabels : [endLabels[1], endLabels[0]];
+    const middle = (upper.labelY + lower.labelY) / 2;
+    upper.labelY = middle - MIN_LABEL_GAP / 2;
+    lower.labelY = middle + MIN_LABEL_GAP / 2;
+  }
+
+  function nearestDataIndex(t: number): number | null {
+    let best: number | null = null;
+    for (const index of dataIndexes) {
+      const center = (bars[index].start + bars[index].end) / 2;
+      if (best === null || Math.abs(center - t) < Math.abs((bars[best].start + bars[best].end) / 2 - t)) best = index;
+    }
+    return best;
+  }
+
+  function handlePointerMove(event: PointerEvent<SVGRectElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setActiveIndex(nearestDataIndex(from + ((event.clientX - bounds.left) / bounds.width) * rangeMs));
+  }
+
+  function handleKeyDown(event: KeyboardEvent<SVGSVGElement>) {
+    if (dataIndexes.length === 0 || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+    event.preventDefault();
+    const position = activeIndex === null ? dataIndexes.length : dataIndexes.indexOf(activeIndex);
+    const next = Math.min(dataIndexes.length - 1, Math.max(0, position + (event.key === "ArrowLeft" ? -1 : 1)));
+    setActiveIndex(dataIndexes[next]);
+  }
+
+  const activeX = active ? x((active.start + active.end) / 2) : 0;
 
   return (
-    <div className="flex flex-col gap-3 text-xs">
-      <ChartLegend
-        items={[
-          { label: "Download", color: SERIES_COLORS.download },
-          { label: "Upload", color: SERIES_COLORS.upload },
-        ]}
-      />
-      <div className="flex">
-        <div aria-hidden className="relative h-56 w-16 shrink-0">
-          {ticks.map((tick) => (
-            <span
-              key={tick}
-              className="absolute right-2 translate-y-1/2 tabular-nums text-zinc-500 dark:text-zinc-400"
-              style={{ bottom: percent(tick) }}
-            >
-              {formatBytes(tick)}
-            </span>
-          ))}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="relative h-56">
-            {ticks.map((tick) => (
-              <span
-                key={tick}
-                aria-hidden
-                className="absolute inset-x-0 h-px bg-zinc-200 dark:bg-zinc-800"
-                style={{ bottom: percent(tick) }}
-              />
-            ))}
-
-            <ul aria-label="Traffic per period" className="absolute inset-0 flex items-end gap-[2px]">
-              {bars.map((bar) => (
-                <li
-                  key={bar.start}
-                  tabIndex={0}
-                  aria-label={`${formatBucket(bar.start, bucket, true)}: ${formatBytes(bar.rx)} downloaded, ${formatBytes(bar.tx)} uploaded`}
-                  className="group relative flex h-full min-w-0 flex-1 flex-col justify-end outline-none"
+    <div className="flex flex-col gap-3">
+      <ChartLegend items={SERIES.map(({ label, color }) => ({ label, color }))} />
+      <div ref={containerRef} className="relative w-full" style={{ height: HEIGHT }}>
+        {width !== null && (
+          <svg
+            width={width}
+            height={HEIGHT}
+            role="img"
+            aria-label="Bytes downloaded and uploaded over time. Use the left and right arrow keys to read values."
+            tabIndex={0}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setActiveIndex((index) => index ?? dataIndexes.at(-1) ?? null)}
+            onBlur={() => setActiveIndex(null)}
+            className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/40"
+          >
+            {yTicks.map((tick) => (
+              <g key={tick}>
+                <line
+                  x1={MARGIN.left}
+                  x2={MARGIN.left + innerWidth}
+                  y1={y(tick)}
+                  y2={y(tick)}
+                  strokeWidth={1}
+                  className="stroke-zinc-200 dark:stroke-zinc-800"
+                />
+                <text
+                  x={MARGIN.left - 8}
+                  y={y(tick)}
+                  textAnchor="end"
+                  dominantBaseline="middle"
+                  className="fill-zinc-500 text-[11px] tabular-nums dark:fill-zinc-400"
                 >
-                  <span
-                    className="flex flex-col justify-end gap-[2px] transition-opacity group-hover:opacity-80 group-focus-visible:opacity-80"
-                    style={{ height: percent(bar.rx + bar.tx) }}
-                  >
-                    {bar.tx > 0 && (
-                      <span
-                        className="block min-h-px rounded-t-[4px]"
-                        style={{ background: SERIES_COLORS.upload, flexBasis: `${(bar.tx / (bar.rx + bar.tx)) * 100}%` }}
-                      />
-                    )}
-                    {bar.rx > 0 && (
-                      <span
-                        className={`block min-h-px ${bar.tx > 0 ? "" : "rounded-t-[4px]"}`}
-                        style={{ background: SERIES_COLORS.download, flexBasis: `${(bar.rx / (bar.rx + bar.tx)) * 100}%` }}
-                      />
-                    )}
-                  </span>
+                  {formatBytes(tick)}
+                </text>
+              </g>
+            ))}
 
-                  <span className="pointer-events-none invisible absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-sm group-hover:visible group-focus-visible:visible dark:border-zinc-700 dark:bg-zinc-800">
-                    <span className="block whitespace-nowrap font-medium text-zinc-900 dark:text-zinc-50">
-                      {formatBucket(bar.start, bucket, true)}
-                    </span>
-                    {[
-                      { label: "Download", value: bar.rx, color: SERIES_COLORS.download },
-                      { label: "Upload", value: bar.tx, color: SERIES_COLORS.upload },
-                    ].map((row) => (
-                      <span key={row.label} className="mt-0.5 flex items-center gap-2 whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                        <span className="h-2.5 w-2.5 rounded-sm" style={{ background: row.color }} />
-                        {row.label}
-                        <span className="ml-auto pl-3 font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                          {formatBytes(row.value)}
-                        </span>
-                      </span>
-                    ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+            {timeTicks(from, to, innerWidth).map((tick) => (
+              <text
+                key={tick}
+                x={x(tick)}
+                y={HEIGHT - 8}
+                textAnchor="middle"
+                className="fill-zinc-500 text-[11px] tabular-nums dark:fill-zinc-400"
+              >
+                {formatTimeTick(tick, rangeMs)}
+              </text>
+            ))}
 
-          <div aria-hidden className="mt-1 flex gap-[2px]">
-            {bars.map((bar, index) => (
-              <span key={bar.start} className="relative h-5 min-w-0 flex-1">
-                {index % labelEvery === 0 && (
-                  <span className="absolute left-0 whitespace-nowrap tabular-nums text-zinc-500 dark:text-zinc-400">
-                    {formatBucket(bar.start, bucket)}
-                  </span>
-                )}
-              </span>
+            {series.map((item) =>
+              item.segments.map((segment, index) =>
+                segment.length === 1 ? (
+                  <circle
+                    key={`${item.key}-${index}`}
+                    cx={x(segment[0].t)}
+                    cy={y(segment[0].value)}
+                    r={3}
+                    fill={item.color}
+                  />
+                ) : (
+                  <path
+                    key={`${item.key}-${index}`}
+                    d={linePath(segment)}
+                    fill="none"
+                    stroke={item.color}
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                ),
+              ),
+            )}
+
+            {endLabels.map((item) => (
+              <g key={item.key}>
+                <circle
+                  cx={x(item.last.t)}
+                  cy={y(item.last.value)}
+                  r={4}
+                  strokeWidth={2}
+                  fill={item.color}
+                  className="stroke-white dark:stroke-zinc-900"
+                />
+                <text
+                  x={x(item.last.t) + 10}
+                  y={item.labelY}
+                  dominantBaseline="middle"
+                  className="fill-zinc-900 text-xs font-semibold tabular-nums dark:fill-zinc-50"
+                >
+                  {formatBytes(item.last.value)}
+                </text>
+              </g>
+            ))}
+
+            {active && (
+              <>
+                <line
+                  x1={activeX}
+                  x2={activeX}
+                  y1={MARGIN.top}
+                  y2={MARGIN.top + innerHeight}
+                  strokeWidth={1}
+                  className="stroke-zinc-400 dark:stroke-zinc-500"
+                />
+                {SERIES.map((item) => (
+                  <circle
+                    key={item.key}
+                    cx={activeX}
+                    cy={y(active[item.key])}
+                    r={4}
+                    strokeWidth={2}
+                    fill={item.color}
+                    className="stroke-white dark:stroke-zinc-900"
+                  />
+                ))}
+              </>
+            )}
+
+            <rect
+              x={MARGIN.left}
+              y={MARGIN.top}
+              width={innerWidth}
+              height={innerHeight}
+              fill="transparent"
+              onPointerMove={handlePointerMove}
+              onPointerLeave={() => setActiveIndex(null)}
+            />
+          </svg>
+        )}
+
+        {active && width !== null && (
+          <div
+            role="status"
+            className="pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs shadow-sm dark:border-zinc-700 dark:bg-zinc-800"
+            style={{ left: Math.min(Math.max(activeX, 90), width - 90) }}
+          >
+            <p className="whitespace-nowrap font-medium text-zinc-900 dark:text-zinc-50">
+              {formatBucket(active.start, bucket, true)}
+            </p>
+            {SERIES.map((item) => (
+              <p key={item.key} className="mt-0.5 flex items-center gap-2 whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+                <span className="h-0.5 w-3 rounded-full" style={{ background: item.color }} />
+                {item.label}
+                <span className="ml-auto pl-3 font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                  {formatBytes(active[item.key])}
+                </span>
+              </p>
             ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

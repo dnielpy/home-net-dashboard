@@ -97,7 +97,7 @@ export async function getOutages(hours: number): Promise<Outage[]> {
   return getJson(`/outages?hours=${hours}`);
 }
 
-export type BandwidthBucket = "hour" | "day";
+export type BandwidthBucket = "10min" | "hour" | "day";
 
 export type BandwidthPoint = {
   start: string;

@@ -3,7 +3,7 @@ import { buildSpans, ConnectionTimeline } from "@/components/stats/connection-ti
 import { RangeFilter } from "@/components/stats/range-filter";
 import { StatusMessage } from "@/components/status-message";
 import { ApiUnavailableError, type ConnectionHistory, getConnectionHistory } from "@/lib/api";
-import { HISTORY_RANGES, parseTimeRange } from "@/lib/time-ranges";
+import { TIME_RANGES, parseTimeRange } from "@/lib/time-ranges";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -11,7 +11,7 @@ const HOUR_MS = 3_600_000;
 
 export async function HistoryStats({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const range = parseTimeRange(params.historyHours, HISTORY_RANGES);
+  const range = parseTimeRange(params.historyHours, TIME_RANGES);
 
   let history: ConnectionHistory;
   try {
@@ -40,7 +40,7 @@ export async function HistoryStats({ searchParams }: { searchParams: SearchParam
         <RangeFilter
           label="Online history time range"
           param="historyHours"
-          ranges={HISTORY_RANGES}
+          ranges={TIME_RANGES}
           selected={range}
           searchParams={params}
         />

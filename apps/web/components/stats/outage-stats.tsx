@@ -5,13 +5,13 @@ import { RangeFilter } from "@/components/stats/range-filter";
 import { StatusMessage } from "@/components/status-message";
 import { ApiUnavailableError, getOutages, type Outage } from "@/lib/api";
 import { formatDuration } from "@/lib/outage-format";
-import { OUTAGE_RANGES, parseTimeRange } from "@/lib/time-ranges";
+import { TIME_RANGES, parseTimeRange } from "@/lib/time-ranges";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export async function OutageStats({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const range = parseTimeRange(params.outageHours, OUTAGE_RANGES);
+  const range = parseTimeRange(params.outageHours, TIME_RANGES);
 
   let outages: Outage[];
   try {
@@ -35,7 +35,7 @@ export async function OutageStats({ searchParams }: { searchParams: SearchParams
         <RangeFilter
           label="Outages time range"
           param="outageHours"
-          ranges={OUTAGE_RANGES}
+          ranges={TIME_RANGES}
           selected={range}
           searchParams={params}
         />
