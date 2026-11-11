@@ -7,6 +7,7 @@ import { HopNode } from "@/components/connection-chain/hop-node";
 import { buildHopViews, linkState, sweepResult } from "@/components/connection-chain/hop-state";
 import { useChainSweep } from "@/components/connection-chain/use-chain-sweep";
 import { RefreshIcon } from "@/components/icons/refresh-icon";
+import { LiveCards } from "@/components/live-cards/live-cards";
 import type { HopInfo } from "@/lib/api";
 
 export function ConnectionChain({ hops }: { hops: HopInfo[] }) {
@@ -68,6 +69,8 @@ export function ConnectionChain({ hops }: { hops: HopInfo[] }) {
         <RefreshIcon className={`h-4 w-4 ${done ? "" : "animate-spin"}`} />
         {done ? "Check again" : "Checking…"}
       </button>
+
+      <LiveCards key={sweep} visible={done && online && !apiError} />
     </section>
   );
 }

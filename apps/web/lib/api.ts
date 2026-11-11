@@ -7,10 +7,10 @@ function apiUrl(path: string): string {
   return new URL(path, base).toString();
 }
 
-async function getJson<T>(path: string): Promise<T> {
+async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(apiUrl(path));
+    response = await fetch(apiUrl(path), init);
   } catch (error) {
     throw new ApiUnavailableError("Could not reach the API", { cause: error });
   }
@@ -120,4 +120,30 @@ export async function getBandwidth(hours: number, bucket: BandwidthBucket): Prom
   await connection();
   const fetchedAt = Date.now();
   return { bandwidth: await getJson(`/bandwidth?hours=${hours}&bucket=${bucket}`), fetchedAt };
+}
+
+export type SpeedTestEvent =
+  | { type: "progress"; phase: string; mbps: number; elapsed_ms: number }
+  | {
+      type: "result";
+      download_mbps: number;
+      ping_ms: number | null;
+      duration_ms: number | null;
+      server_location: string | null;
+      client_location: string | null;
+    }
+  | { type: "error"; detail: string };
+
+/** Starts (or follows) a speed test; the body streams one SpeedTestEvent per line. */
+export async function streamSpeedTest(signal: AbortSignal): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(apiUrl("/speed-test"), { method: "POST", cache: "no-store", signal });
+  } catch (error) {
+    throw new ApiUnavailableError("Could not reach the API", { cause: error });
+  }
+  if (!response.ok || !response.body) {
+    throw new ApiUnavailableError(`API responded with ${response.status}`);
+  }
+  return response;
 }

@@ -72,6 +72,21 @@ body {
   animation: text-flash 1.4s ease-out both;
 }
 
+@keyframes live-cards-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.live-cards-in {
+  animation: live-cards-in 0.7s ease-out both;
+}
+
 @keyframes hop-pinging {
   0% {
     opacity: 0.9;
@@ -133,6 +148,10 @@ body {
   .link-flow,
   .hop-pinging {
     animation: none;
+  }
+
+  .live-cards-in {
+    animation-duration: 0.01s;
   }
 
   .hop-flash,
