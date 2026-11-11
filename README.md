@@ -52,7 +52,7 @@ pnpm dev
 
 Ports are chosen so it can run next to the Bluetti project on the same machine.
 
-`pnpm db:seed` fills the last 7 days with simulated checks and traffic to work on the UI. Delete the simulated `traffic_sample` rows before collecting real traffic, or the first real sample is compared with a simulated counter.
+`pnpm db:seed` adds 30 days of simulated checks and traffic (`-- --days N` to change it) to work on the UI. It only fills the time before the data already stored, so the latest traffic sample stays the real one. `-- --replace` deletes those days first and seeds up to now; delete the simulated `traffic_sample` rows before collecting real traffic again, or the first real sample is compared with a simulated counter.
 
 ## API
 
@@ -61,6 +61,8 @@ Ports are chosen so it can run next to the Bluetti project on the same machine.
 | `GET /connection/hops` | The hops of the chain in order, with their IPs |
 | `GET /connection/live/{hop}` | Pings one hop once a second for about 3 seconds; the dashboard walks the chain with it |
 | `GET /connection/live` | Pings every hop now: `online`, `break_at` and each hop's latency |
+| `GET /connection/latest` | The latest check stored by the background job; the dashboard shows it on load |
+| `GET /speed-test/latest` | The latest stored speed test |
 | `POST /speed-test` | Measures download speed with fast.com through [`fast-test-cli`](https://www.npmjs.com/package/fast-test-cli), streaming the speed as NDJSON while it measures (10–30 s) |
 | `GET /connection-status` | State according to the latest check, since when, last outage / last period online |
 | `GET /connection-history?hours=24` | Periods online, offline and without checks |
@@ -83,7 +85,7 @@ Traffic comes from the Nano's wireless station counters (`/status.cgi`). Each sa
 | `pnpm db:up` | Start Postgres |
 | `pnpm db:down` | Stop Postgres |
 | `pnpm db:migrate` | Apply database migrations |
-| `pnpm db:seed` | Seed 7 days of simulated data (`-- --replace` to overwrite) |
+| `pnpm db:seed` | Add 30 days of simulated data before the stored data (`-- --days N`, `-- --replace`) |
 
 ## Production (Docker)
 
@@ -101,6 +103,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 
 - Web: http://HOST:3010 · API: http://HOST:3011 (ports set by `WEB_PORT` / `API_PORT`)
 - Postgres is not published outside the Docker network.
+- The API runs a speed test every `SPEED_TEST_INTERVAL_SECONDS` (default 600, about 1.4 GB a day on a 5 Mbps link; 0 turns it off) and stores it, so opening the dashboard never measures.
 - The API image ships Node and `fast-test-cli` for the speed test. Outside Docker, install it with `npm install --global fast-test-cli` (or set `FAST_CLI` to its `cli.js`).
 - The API sends pings without root through unprivileged ICMP sockets, enabled for the container with the `net.ipv4.ping_group_range` sysctl.
 - Dates and daily bandwidth use `TZ` (default `America/Havana`).
@@ -113,3 +116,5 @@ Dependency downloads retry instead of failing on a dropped connection:
 
 - **pnpm** (locally and in the web image): settings in `pnpm-workspace.yaml`.
 - **uv** (API image): `UV_HTTP_RETRIES=8`, `UV_HTTP_TIMEOUT=300` and 4 parallel downloads.
+- **npm** (`fast-test-cli` in the API image): 8 retries with backoff from 20 s up to 3 min, a 5 min request timeout and at most 4 connections.
+- Every image build keeps its download cache (pnpm store, uv cache, npm cache) between builds, so a build that fails halfway does not download everything again.

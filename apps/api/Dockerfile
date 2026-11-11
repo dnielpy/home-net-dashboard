@@ -2,7 +2,9 @@ FROM ghcr.io/astral-sh/uv:0.13.6 AS uv
 
 # fast.com speed tests run through the fast-test-cli package, which needs Node
 FROM node:24-bookworm-slim AS fast
-RUN npm install --global fast-test-cli@1.0.1 \
+RUN --mount=type=cache,id=npm-cache,target=/root/.npm \
+    npm install --global fast-test-cli@1.0.1 \
+    --maxsockets=4 \
     --fetch-retries=8 \
     --fetch-retry-factor=2 \
     --fetch-retry-mintimeout=20000 \
