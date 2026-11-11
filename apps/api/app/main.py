@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from app import db, jobs, nano
-from app.routers import health
+from app.routers import connection, health
 
 load_dotenv()
 
@@ -34,3 +34,4 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Home Net Dashboard API", version="0.1.0", lifespan=lifespan)
 
 app.include_router(health.router)
+app.include_router(connection.router)
