@@ -101,6 +101,8 @@ Edit `.env.production`: set a strong `POSTGRES_PASSWORD` and the Nano's `NANO_US
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
 
+To update a running deployment later, run `./scripts/update.sh`: it stops the containers, runs `git pull` and builds and starts them again, waiting until they are healthy. The database volume is kept.
+
 - Web: http://HOST:3010 · API: http://HOST:3011 (ports set by `WEB_PORT` / `API_PORT`)
 - Postgres is not published outside the Docker network.
 - The API runs a speed test every `SPEED_TEST_INTERVAL_SECONDS` (default 600, about 1.4 GB a day on a 5 Mbps link; 0 turns it off) and stores it, so opening the dashboard never measures.
