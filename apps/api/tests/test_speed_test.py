@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import datetime, timezone
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -9,9 +10,21 @@ from fastapi.testclient import TestClient
 
 from app import speed_test
 from app.main import app
+from app.models import SpeedTestResult
 from app.speed_test import SpeedTestError, SpeedTestRun, find_speed_test_module, parse_event
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def saved_results(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    saved: list[dict[str, Any]] = []
+
+    async def fake_save_result(event: dict[str, Any]) -> None:
+        saved.append(event)
+
+    monkeypatch.setattr(speed_test, "save_result", fake_save_result)
+    return saved
 
 RESULT_LINE = json.dumps(
     {
@@ -147,3 +160,44 @@ def test_speed_test_endpoint_streams_ndjson(monkeypatch: pytest.MonkeyPatch) -> 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/x-ndjson")
     assert [json.loads(line) for line in response.text.splitlines()] == [*PROGRESS, RESULT]
+
+
+def test_finished_test_is_stored(monkeypatch: pytest.MonkeyPatch, saved_results: list) -> None:
+    monkeypatch.setattr(speed_test, "_run_events", _fake_events([*PROGRESS, RESULT]))
+
+    async def scenario() -> None:
+        async for _ in SpeedTestRun().listen():
+            pass
+
+    asyncio.run(scenario())
+
+    assert saved_results == [RESULT]
+
+
+def test_latest_speed_test(monkeypatch: pytest.MonkeyPatch, fake_session) -> None:
+    async def fake_latest(session):
+        return SpeedTestResult(
+            date=datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc),
+            download_mbps=5.2,
+            ping_ms=120.0,
+            duration_ms=15000,
+            server_location="Miami, US",
+            client_location="San Juan, PR",
+        )
+
+    monkeypatch.setattr(speed_test, "latest_result", fake_latest)
+
+    body = client.get("/speed-test/latest").json()
+
+    assert (body["measured_at"], body["download_mbps"]) == ("2026-11-11T12:00:00Z", 5.2)
+
+
+def test_latest_speed_test_before_any(monkeypatch: pytest.MonkeyPatch, fake_session) -> None:
+    async def fake_latest(session):
+        return None
+
+    monkeypatch.setattr(speed_test, "latest_result", fake_latest)
+
+    response = client.get("/speed-test/latest")
+
+    assert (response.status_code, response.json()) == (200, None)

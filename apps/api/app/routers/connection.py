@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import pinger
+from app import checks, pinger
+from app.db import get_session
 from app.schemas import HopInfoOut, HopOut, LiveConnectionOut
 
 router = APIRouter(tags=["connection"])
@@ -49,3 +51,23 @@ async def live_hop(hop: str) -> HopOut:
     except OSError as err:
         raise HTTPException(status_code=503, detail=f"Could not send pings: {err}")
     return HopOut(name=result.name, ip=result.ip, ok=result.ok, latency_ms=result.latency_ms)
+
+
+@router.get(
+    "/connection/latest",
+    response_model=LiveConnectionOut | None,
+    description="The latest check stored by the background job (every 30 seconds), or null before the first one.",
+)
+async def latest(session: AsyncSession = Depends(get_session)) -> LiveConnectionOut | None:
+    check = await checks.latest_check(session)
+    if check is None:
+        return None
+    return LiveConnectionOut(
+        checked_at=check.date,
+        online=check.online,
+        break_at=check.break_at,
+        hops=[
+            HopOut(name=name, ip=ip, ok=getattr(check, f"{name}_ok"), latency_ms=getattr(check, f"{name}_ms"))
+            for name, ip in pinger.get_hop_ips()
+        ],
+    )

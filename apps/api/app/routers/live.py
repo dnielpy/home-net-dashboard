@@ -1,10 +1,13 @@
 import json
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import speed_test
+from app.db import get_session
+from app.schemas import SpeedTestOut
 
 router = APIRouter(tags=["live"])
 
@@ -25,3 +28,22 @@ async def _ndjson(events: AsyncIterator[dict]) -> AsyncIterator[str]:
 )
 async def run_speed_test() -> StreamingResponse:
     return StreamingResponse(_ndjson(speed_test.speed_test_events()), media_type="application/x-ndjson")
+
+
+@router.get(
+    "/speed-test/latest",
+    response_model=SpeedTestOut | None,
+    description="The latest finished speed test (run every 10 minutes and on demand), or null before the first one.",
+)
+async def latest_speed_test(session: AsyncSession = Depends(get_session)) -> SpeedTestOut | None:
+    result = await speed_test.latest_result(session)
+    if result is None:
+        return None
+    return SpeedTestOut(
+        measured_at=result.date,
+        download_mbps=result.download_mbps,
+        ping_ms=result.ping_ms,
+        duration_ms=result.duration_ms,
+        server_location=result.server_location,
+        client_location=result.client_location,
+    )

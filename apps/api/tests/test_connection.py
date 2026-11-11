@@ -3,8 +3,9 @@ from datetime import datetime, timezone
 import pytest
 from fastapi.testclient import TestClient
 
-from app import pinger
+from app import checks, pinger
 from app.main import app
+from app.models import ConnectionCheck
 from app.pinger import ChainCheck, HopResult
 
 client = TestClient(app)
@@ -63,3 +64,41 @@ def test_live_hop(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_live_unknown_hop() -> None:
     assert client.get("/connection/live/modem").status_code == 404
+
+
+def test_latest_check(monkeypatch: pytest.MonkeyPatch, fake_session) -> None:
+    async def fake_latest(session):
+        return ConnectionCheck(
+            date=datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc),
+            router_ok=True,
+            nano_ok=True,
+            provider_ok=False,
+            internet_ok=False,
+            router_ms=1.5,
+            nano_ms=2.5,
+            provider_ms=None,
+            internet_ms=None,
+            online=False,
+            break_at="provider",
+        )
+
+    monkeypatch.setattr(checks, "latest_check", fake_latest)
+
+    body = client.get("/connection/latest").json()
+
+    assert (body["online"], body["break_at"]) == (False, "provider")
+    assert [(hop["name"], hop["ok"], hop["latency_ms"]) for hop in body["hops"]] == [
+        ("router", True, 1.5),
+        ("nano", True, 2.5),
+        ("provider", False, None),
+        ("internet", False, None),
+    ]
+
+
+def test_latest_check_before_any(monkeypatch: pytest.MonkeyPatch, fake_session) -> None:
+    async def fake_latest(session):
+        return None
+
+    monkeypatch.setattr(checks, "latest_check", fake_latest)
+
+    assert client.get("/connection/latest").json() is None

@@ -66,3 +66,12 @@ class BandwidthOut(BaseModel):
     total_rx_bytes: int
     total_tx_bytes: int
     items: list[BandwidthPoint]
+
+
+class SpeedTestOut(BaseModel):
+    measured_at: datetime
+    download_mbps: float
+    ping_ms: float | None
+    duration_ms: int | None
+    server_location: str | None
+    client_location: str | None

@@ -18,12 +18,15 @@ logging.getLogger("app").setLevel(logging.INFO)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    interval = jobs.get_interval_seconds()
-    task = asyncio.create_task(jobs.run_check_job(interval)) if interval > 0 else None
+    tasks = []
+    if (interval := jobs.get_interval_seconds()) > 0:
+        tasks.append(asyncio.create_task(jobs.run_check_job(interval)))
+    if (speed_test_interval := jobs.get_speed_test_interval_seconds()) > 0:
+        tasks.append(asyncio.create_task(jobs.run_speed_test_job(speed_test_interval)))
 
     yield
 
-    if task is not None:
+    for task in tasks:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task

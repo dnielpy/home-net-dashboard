@@ -38,6 +38,8 @@ services:
       NANO_USERNAME: ${NANO_USERNAME:?Set NANO_USERNAME}
       NANO_PASSWORD: ${NANO_PASSWORD:?Set NANO_PASSWORD}
       CHECK_JOB_INTERVAL_SECONDS: ${CHECK_JOB_INTERVAL_SECONDS:-30}
+      # A fast.com test every 10 minutes; 0 turns it off (tests then only run from the dashboard)
+      SPEED_TEST_INTERVAL_SECONDS: ${SPEED_TEST_INTERVAL_SECONDS:-600}
       # Bandwidth per day is cut at midnight in this timezone
       TZ: ${TZ:-America/Havana}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}

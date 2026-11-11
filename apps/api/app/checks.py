@@ -37,3 +37,8 @@ async def list_states(session: AsyncSession, since: datetime) -> Sequence[Row]:
         .order_by(ConnectionCheck.date.asc(), ConnectionCheck.id.asc())
     )
     return (await session.execute(query)).all()
+
+
+async def latest_check(session: AsyncSession) -> ConnectionCheck | None:
+    query = select(ConnectionCheck).order_by(ConnectionCheck.date.desc(), ConnectionCheck.id.desc()).limit(1)
+    return await session.scalar(query)

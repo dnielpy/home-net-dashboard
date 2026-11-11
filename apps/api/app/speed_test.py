@@ -1,10 +1,20 @@
 import asyncio
 import json
+import logging
 import os
 import shutil
 from collections.abc import AsyncIterator
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app import db, repository
+from app.models import SpeedTestResult
+
+logger = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 90
 PROGRESS_SCRIPT = Path(__file__).with_name("fast_progress.mjs")
@@ -79,6 +89,30 @@ async def _run_events() -> AsyncIterator[dict[str, Any]]:
         raise SpeedTestError(f"fast failed: {stderr or process.returncode}")
 
 
+async def save_result(event: dict[str, Any]) -> None:
+    """Stores a finished test, so the dashboard can show the latest one without measuring again."""
+    try:
+        async with db.session_scope() as session:
+            await repository.save(
+                session,
+                SpeedTestResult(
+                    date=datetime.now(timezone.utc),
+                    download_mbps=event["download_mbps"],
+                    ping_ms=event["ping_ms"],
+                    duration_ms=event["duration_ms"],
+                    server_location=event["server_location"],
+                    client_location=event["client_location"],
+                ),
+            )
+    except Exception:
+        logger.exception("Could not store the speed test result")
+
+
+async def latest_result(session: AsyncSession) -> SpeedTestResult | None:
+    query = select(SpeedTestResult).order_by(SpeedTestResult.date.desc(), SpeedTestResult.id.desc()).limit(1)
+    return await session.scalar(query)
+
+
 class SpeedTestRun:
     """One speed test whose events every listener receives, including the ones sent before it started listening."""
 
@@ -91,6 +125,8 @@ class SpeedTestRun:
     async def _collect(self) -> None:
         try:
             async for event in _run_events():
+                if event["type"] == "result":
+                    await save_result(event)
                 await self._publish(event)
         except SpeedTestError as err:
             await self._publish({"type": "error", "detail": str(err)})

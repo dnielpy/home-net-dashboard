@@ -37,3 +37,17 @@ class TrafficSample(Base):
     uptime: Mapped[int] = mapped_column(Integer, nullable=False)
     rx_delta: Mapped[int] = mapped_column(BigInteger, nullable=False)
     tx_delta: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+
+class SpeedTestResult(Base):
+    __tablename__ = "speed_test"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+    download_mbps: Mapped[float] = mapped_column(Float, nullable=False)
+    ping_ms: Mapped[float | None] = mapped_column(Float)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    server_location: Mapped[str | None] = mapped_column(String(128))
+    client_location: Mapped[str | None] = mapped_column(String(128))

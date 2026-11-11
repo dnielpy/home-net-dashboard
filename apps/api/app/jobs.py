@@ -3,15 +3,20 @@ import logging
 import os
 import time
 
-from app import checks, db, nano, traffic
+from app import checks, db, nano, speed_test, traffic
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_INTERVAL_SECONDS = 30
+DEFAULT_SPEED_TEST_INTERVAL_SECONDS = 600
 
 
 def get_interval_seconds() -> int:
     return int(os.environ.get("CHECK_JOB_INTERVAL_SECONDS", DEFAULT_INTERVAL_SECONDS))
+
+
+def get_speed_test_interval_seconds() -> int:
+    return int(os.environ.get("SPEED_TEST_INTERVAL_SECONDS", DEFAULT_SPEED_TEST_INTERVAL_SECONDS))
 
 
 def _raise_if_cancelling() -> None:
@@ -61,5 +66,27 @@ async def run_check_job(interval_seconds: int) -> None:
     while True:
         started = time.monotonic()
         await asyncio.gather(check_once(), sample_traffic_once())
+        elapsed = time.monotonic() - started
+        await asyncio.sleep(max(0.0, interval_seconds - elapsed))
+
+
+async def speed_test_once() -> None:
+    """Runs a speed test (or follows the one already running); the result is stored as it finishes."""
+    try:
+        async for event in speed_test.speed_test_events():
+            if event["type"] == "result":
+                logger.info("Speed test saved download=%sMbps ping=%sms", event["download_mbps"], event["ping_ms"])
+            elif event["type"] == "error":
+                logger.warning("Speed test failed: %s", event["detail"])
+    except Exception:
+        _raise_if_cancelling()
+        logger.exception("Speed test job failed")
+
+
+async def run_speed_test_job(interval_seconds: int) -> None:
+    logger.info("Speed test job started, every %s seconds", interval_seconds)
+    while True:
+        started = time.monotonic()
+        await speed_test_once()
         elapsed = time.monotonic() - started
         await asyncio.sleep(max(0.0, interval_seconds - elapsed))
