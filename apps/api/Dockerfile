@@ -1,5 +1,14 @@
 FROM ghcr.io/astral-sh/uv:0.13.6 AS uv
 
+# fast.com speed tests run through the fast-test-cli package, which needs Node
+FROM node:24-bookworm-slim AS fast
+RUN npm install --global fast-test-cli@1.0.1 \
+    --fetch-retries=8 \
+    --fetch-retry-factor=2 \
+    --fetch-retry-mintimeout=20000 \
+    --fetch-retry-maxtimeout=180000 \
+    --fetch-timeout=300000
+
 FROM python:3.12-slim-bookworm AS build
 COPY --from=uv /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 \
@@ -19,7 +28,10 @@ COPY app app
 FROM python:3.12-slim-bookworm
 ENV PATH=/app/.venv/bin:$PATH \
     PYTHONUNBUFFERED=1
-RUN useradd --system --uid 10001 --no-create-home app
+COPY --from=fast /usr/local/bin/node /usr/local/bin/node
+COPY --from=fast /usr/local/lib/node_modules/fast-test-cli /usr/local/lib/node_modules/fast-test-cli
+RUN ln -s ../lib/node_modules/fast-test-cli/dist/src/cli.js /usr/local/bin/fast \
+    && useradd --system --uid 10001 --no-create-home app
 WORKDIR /app
 COPY --from=build --chown=app:app /app /app
 USER app

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from app import db, jobs, nano
-from app.routers import connection, health, stats
+from app.routers import connection, health, live, stats
 
 load_dotenv()
 
@@ -36,3 +36,4 @@ app = FastAPI(title="Home Net Dashboard API", version="0.1.0", lifespan=lifespan
 app.include_router(health.router)
 app.include_router(connection.router)
 app.include_router(stats.router)
+app.include_router(live.router)

@@ -58,7 +58,10 @@ Ports are chosen so it can run next to the Bluetti project on the same machine.
 
 | Endpoint | Description |
 |---|---|
+| `GET /connection/hops` | The hops of the chain in order, with their IPs |
+| `GET /connection/live/{hop}` | Pings one hop once a second for about 3 seconds; the dashboard walks the chain with it |
 | `GET /connection/live` | Pings every hop now: `online`, `break_at` and each hop's latency |
+| `POST /speed-test` | Measures download speed with fast.com through [`fast-test-cli`](https://www.npmjs.com/package/fast-test-cli), streaming the speed as NDJSON while it measures (10–30 s) |
 | `GET /connection-status` | State according to the latest check, since when, last outage / last period online |
 | `GET /connection-history?hours=24` | Periods online, offline and without checks |
 | `GET /outages?hours=24` | Outages with duration and the hop where the chain broke |
@@ -98,6 +101,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 
 - Web: http://HOST:3010 · API: http://HOST:3011 (ports set by `WEB_PORT` / `API_PORT`)
 - Postgres is not published outside the Docker network.
+- The API image ships Node and `fast-test-cli` for the speed test. Outside Docker, install it with `npm install --global fast-test-cli` (or set `FAST_CLI` to its `cli.js`).
 - The API sends pings without root through unprivileged ICMP sockets, enabled for the container with the `net.ipv4.ping_group_range` sysctl.
 - Dates and daily bandwidth use `TZ` (default `America/Havana`).
 - The API applies migrations on startup and runs with a single worker, so the check job runs once.
