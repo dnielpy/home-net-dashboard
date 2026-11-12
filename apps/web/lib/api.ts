@@ -157,6 +157,19 @@ export async function getBandwidth(hours: number, bucket: BandwidthBucket): Prom
   return { bandwidth: await getJson(`/bandwidth?hours=${hours}&bucket=${bucket}`), fetchedAt };
 }
 
+export type DeviceUsage = {
+  mac: string;
+  name: string;
+  down_bytes: number;
+  up_bytes: number;
+};
+
+/** Bytes each device used in the last `hours`, the heaviest first; only devices that used something. */
+export async function getDeviceUsage(hours: number): Promise<DeviceUsage[]> {
+  await connection();
+  return getJson(`/device-usage?hours=${hours}`);
+}
+
 export type SpeedTestEvent =
   | { type: "progress"; phase: string; mbps: number; elapsed_ms: number }
   | {

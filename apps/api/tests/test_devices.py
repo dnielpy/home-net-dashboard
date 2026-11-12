@@ -181,3 +181,15 @@ def test_device_history(monkeypatch: pytest.MonkeyPatch, fake_session) -> None:
     assert seen == {"mac": PHONE, "bucket": "10min"}
     assert (body["total_down_bytes"], body["total_up_bytes"]) == (3_000, 50)
     assert body["items"][0]["avg_down_kbs"] == 120.5
+
+
+def test_device_usage(router) -> None:
+    response = client.get("/device-usage?hours=6")
+
+    assert response.status_code == 200
+    # Only devices that used something, the heaviest first, named from the history
+    assert response.json() == [{"mac": PHONE, "name": "", "down_bytes": 5_000_000, "up_bytes": 100_000}]
+
+
+def test_device_usage_rejects_too_many_hours(fake_session) -> None:
+    assert client.get("/device-usage?hours=721").status_code == 422

@@ -98,6 +98,13 @@ class DeviceOut(BaseModel):
     usage_24h_up_bytes: int
 
 
+class DeviceUsageOut(BaseModel):
+    mac: str
+    name: str
+    down_bytes: int
+    up_bytes: int
+
+
 class DeviceHistoryPoint(BaseModel):
     start: datetime
     avg_down_kbs: float

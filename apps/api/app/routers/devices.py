@@ -12,6 +12,7 @@ from app.schemas import (
     DeviceLimitIn,
     DeviceNameIn,
     DeviceOut,
+    DeviceUsageOut,
 )
 
 router = APIRouter(tags=["devices"])
@@ -108,6 +109,28 @@ async def _device_list(session: AsyncSession) -> list[DeviceOut]:
 )
 async def list_devices(session: AsyncSession = Depends(get_session)) -> list[DeviceOut]:
     return await _device_list(session)
+
+
+@router.get(
+    "/device-usage",
+    response_model=list[DeviceUsageOut],
+    description=(
+        "Bytes each device used in the last `hours` (estimated from its speed every few seconds), from the history "
+        "alone so it works while the router is unreachable. Only devices that used something; the heaviest first."
+    ),
+)
+async def device_usage(
+    hours: float = Query(24, gt=0, le=720, description="How many hours back to include."),
+    session: AsyncSession = Depends(get_session),
+) -> list[DeviceUsageOut]:
+    usage = await devices.list_usage(session, datetime.now(timezone.utc) - timedelta(hours=hours))
+    names = {device.mac: device.name for device in await devices.list_known_devices(session)}
+    result = [
+        DeviceUsageOut(mac=mac, name=names.get(mac, ""), down_bytes=down, up_bytes=up)
+        for mac, (down, up) in usage.items()
+        if down + up > 0
+    ]
+    return sorted(result, key=lambda device: (-(device.down_bytes + device.up_bytes), device.mac))
 
 
 @router.get(

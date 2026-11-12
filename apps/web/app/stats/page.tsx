@@ -5,6 +5,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { BandwidthStats } from "@/components/stats/bandwidth-stats";
 import { ChartCardSkeleton } from "@/components/stats/chart-card-skeleton";
 import { ConnectionStatusCard } from "@/components/stats/connection-status-card";
+import { DeviceUsageStats } from "@/components/stats/device-usage-stats";
 import { HistoryStats } from "@/components/stats/history-stats";
 import { OutageStats } from "@/components/stats/outage-stats";
 
@@ -23,6 +24,9 @@ export default function StatsPage({ searchParams }: PageProps<"/stats">) {
       </Suspense>
       <Suspense fallback={<ChartCardSkeleton height={150} />}>
         <HistoryStats />
+      </Suspense>
+      <Suspense fallback={<ChartCardSkeleton height={420} />}>
+        <DeviceUsageStats searchParams={searchParams} />
       </Suspense>
       <Suspense fallback={<ChartCardSkeleton height={380} />}>
         <BandwidthStats searchParams={searchParams} />
