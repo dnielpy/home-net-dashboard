@@ -39,6 +39,9 @@ class ConnectionStatusOut(BaseModel):
     last_online: datetime | None
     last_outage: OutagePeriodOut | None
     last_online_period: PeriodOut | None
+    totals_since: datetime | None
+    online_hours: float
+    offline_hours: float
 
 
 class SegmentOut(BaseModel):

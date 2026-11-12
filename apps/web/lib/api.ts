@@ -67,6 +67,10 @@ export type ConnectionStatus = {
   last_online: string | null;
   last_outage: OutagePeriod | null;
   last_online_period: Period | null;
+  // Hours online and offline in the last 24 hours, leaving out gaps without checks
+  totals_since: string | null;
+  online_hours: number;
+  offline_hours: number;
 };
 
 export type ConnectionStatusResult = {

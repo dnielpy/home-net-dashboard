@@ -72,7 +72,7 @@ def test_bandwidth_rejects_unknown_bucket(fake_session) -> None:
     assert client.get("/bandwidth?bucket=week").status_code == 422
 
 
-def test_connection_status(monkeypatch: pytest.MonkeyPatch, fake_session) -> None:
+def test_connection_status(monkeypatch: pytest.MonkeyPatch, states) -> None:
     async def fake_status(session):
         return ConnectionStatus(
             online=True,
@@ -95,6 +95,9 @@ def test_connection_status(monkeypatch: pytest.MonkeyPatch, fake_session) -> Non
         "break_at": "nano",
     }
     assert body["last_online_period"] is None
+    assert body["totals_since"] == "2026-11-11T00:00:00Z"
+    assert body["online_hours"] == round(30 / 3600, 3)
+    assert body["offline_hours"] == round(60 / 3600, 3)
 
 
 @pytest.mark.parametrize("bucket", ["10min", "hour", "day"])

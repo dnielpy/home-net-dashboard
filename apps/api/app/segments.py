@@ -28,6 +28,24 @@ def most_common_break(breaks: Counter[str]) -> str | None:
     return max(breaks, key=lambda name: (breaks[name], -HOP_NAMES.index(name)))
 
 
+@dataclass
+class ConnectionTotals:
+    since: datetime | None
+    online_hours: float
+    offline_hours: float
+
+
+def connection_totals(segments: list[Segment]) -> ConnectionTotals:
+    """Hours online and offline over all the segments; gaps without checks count as neither."""
+    online = sum(((s.end - s.start).total_seconds() for s in segments if s.online is True), 0.0)
+    offline = sum(((s.end - s.start).total_seconds() for s in segments if s.online is False), 0.0)
+    return ConnectionTotals(
+        since=segments[0].start if segments else None,
+        online_hours=round(online / 3600, 3),
+        offline_hours=round(offline / 3600, 3),
+    )
+
+
 def find_segments(
     states: Iterable[tuple[datetime, bool, str | None]],
     max_gap: timedelta = MAX_CHECK_GAP,

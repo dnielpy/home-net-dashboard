@@ -15,9 +15,13 @@ from app.schemas import (
     PeriodOut,
     SegmentOut,
 )
-from app.segments import find_segments
+from app.segments import connection_totals, find_segments
 
 router = APIRouter(tags=["stats"])
+
+
+# The window the hours online and offline cover
+TOTALS_HOURS = 24
 
 
 def _since(hours: float) -> datetime:
@@ -30,13 +34,16 @@ def _since(hours: float) -> datetime:
     description=(
         "Whether internet answers according to the latest check, where the chain is cut if not, since when it is in "
         "that state, the last check with internet, the last finished outage (while online) and the last period "
-        "online (during an outage)."
+        "online (during an outage), plus the hours online and offline in the last 24 hours, counted from the first "
+        "check in them (`totals_since`) and leaving out gaps without checks."
     ),
 )
 async def get_connection_status(session: AsyncSession = Depends(get_session)) -> ConnectionStatusOut:
     status = await connection_status.get_connection_status(session)
     last_outage = status.last_outage
     last_online_period = status.last_online_period
+    rows = await checks.list_states(session, _since(TOTALS_HOURS))
+    totals = connection_totals(find_segments((row.date, row.online, row.break_at) for row in rows))
     return ConnectionStatusOut(
         online=status.online,
         break_at=status.break_at,
@@ -61,6 +68,9 @@ async def get_connection_status(session: AsyncSession = Depends(get_session)) ->
             if last_online_period
             else None
         ),
+        totals_since=totals.since,
+        online_hours=totals.online_hours,
+        offline_hours=totals.offline_hours,
     )
 
 

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from app.outages import find_outages
-from app.segments import find_segments
+from app.segments import connection_totals, find_segments
 
 T0 = datetime(2026, 11, 11, 0, 0, tzinfo=timezone.utc)
 STEP = timedelta(seconds=30)
@@ -73,3 +73,19 @@ def test_outage_closes_at_gap() -> None:
     [outage] = find_outages(states)
 
     assert (outage.start, outage.end, outage.ongoing) == (T0 + STEP, T0 + STEP, False)
+
+
+def test_totals_leave_out_gaps() -> None:
+    states = _states(None, None, "provider", None) + [(T0 + timedelta(minutes=20), True, None)]
+
+    totals = connection_totals(find_segments(states))
+
+    assert totals.since == T0
+    assert totals.online_hours == round(2 * STEP.total_seconds() / 3600, 3)
+    assert totals.offline_hours == round(STEP.total_seconds() / 3600, 3)
+
+
+def test_totals_without_checks() -> None:
+    totals = connection_totals([])
+
+    assert (totals.since, totals.online_hours, totals.offline_hours) == (None, 0.0, 0.0)

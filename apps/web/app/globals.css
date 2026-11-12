@@ -212,7 +212,26 @@ body {
   animation: connected-shine 2.4s ease-in-out infinite;
 }
 
+/* A comet running around the border of the tile that shows the current connection state */
+@keyframes comet-travel {
+  from {
+    stroke-dashoffset: var(--comet-start);
+  }
+  to {
+    stroke-dashoffset: var(--comet-end);
+  }
+}
+
+.comet {
+  stroke-dasharray: var(--comet-length) 2;
+  animation: comet-travel var(--comet-duration, 12s) linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .comet {
+    display: none;
+  }
+
   .link-flow,
   .hop-pinging,
   .connected-glow,
