@@ -173,3 +173,96 @@ export async function streamSpeedTest(signal: AbortSignal): Promise<Response> {
   }
   return response;
 }
+
+export type Device = {
+  mac: string;
+  name: string;
+  ip: string | null;
+  /** False when only the history knows the device; the router no longer lists it. */
+  in_router: boolean;
+  online: boolean;
+  blocked: boolean;
+  /** KB/s as the router reports them (1 KB = 1024 bytes); limits of 0 mean unlimited. */
+  down_kbs: number;
+  up_kbs: number;
+  connected_since: string | null;
+  last_seen: string | null;
+  limit_down_kbs: number;
+  limit_up_kbs: number;
+  usage_24h_down_bytes: number;
+  usage_24h_up_bytes: number;
+};
+
+/** The live device list; pages go through getDevicesResult, the route handler calls this directly. */
+export async function getDevices(): Promise<Device[]> {
+  return getJson("/devices", { cache: "no-store" });
+}
+
+export type DevicesResult = { devices: Device[]; fetchedAt: number };
+
+export async function getDevicesResult(): Promise<DevicesResult> {
+  await connection();
+  const fetchedAt = Date.now();
+  return { devices: await getDevices(), fetchedAt };
+}
+
+export type DeviceHistoryPoint = {
+  start: string;
+  avg_down_kbs: number;
+  max_down_kbs: number;
+  avg_up_kbs: number;
+  max_up_kbs: number;
+  down_bytes: number;
+  up_bytes: number;
+};
+
+export type DeviceHistory = {
+  mac: string;
+  total_down_bytes: number;
+  total_up_bytes: number;
+  items: DeviceHistoryPoint[];
+};
+
+export type DeviceHistoryResult = { history: DeviceHistory; fetchedAt: number };
+
+export async function getDeviceHistory(mac: string, hours: number, bucket: BandwidthBucket): Promise<DeviceHistoryResult> {
+  await connection();
+  const fetchedAt = Date.now();
+  const path = `/devices/${encodeURIComponent(mac)}/history?hours=${hours}&bucket=${bucket}`;
+  return { history: await getJson(path, { cache: "no-store" }), fetchedAt };
+}
+
+export const DEVICE_ACTIONS = ["block", "limit", "name"] as const;
+
+export type DeviceAction = (typeof DEVICE_ACTIONS)[number];
+
+export class ApiRejectedError extends Error {
+  constructor(
+    readonly status: number,
+    readonly detail: unknown,
+  ) {
+    super(`API rejected the request with ${status}`);
+  }
+}
+
+/** Sends a block, limit or rename to the API and returns the device as the router lists it afterwards. */
+export async function postDeviceAction(mac: string, action: DeviceAction, body: unknown): Promise<Device> {
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(`/devices/${encodeURIComponent(mac)}/${action}`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch (error) {
+    throw new ApiUnavailableError("Could not reach the API", { cause: error });
+  }
+  if (response.status >= 500) {
+    throw new ApiUnavailableError(`API responded with ${response.status}`);
+  }
+  if (!response.ok) {
+    throw new ApiRejectedError(response.status, (await response.json().catch(() => null))?.detail);
+  }
+  return response.json();
+}

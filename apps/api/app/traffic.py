@@ -1,7 +1,7 @@
 import os
 from collections.abc import Sequence
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
 from sqlalchemy import Row, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,14 +51,19 @@ async def collect_traffic(session: AsyncSession) -> TrafficSample:
     return await repository.save(session, build_sample(reading, previous, datetime.now(timezone.utc)))
 
 
-async def list_bandwidth(session: AsyncSession, since: datetime, bucket: Bucket) -> Sequence[Row]:
+def bucket_start(date_column: Any, bucket: Bucket) -> Any:
+    """The start of the 10 minutes, hour or day each date falls in, cut in the local timezone, labelled `start`."""
     tz = get_timezone()
-    local = func.timezone(tz, TrafficSample.date)
+    local = func.timezone(tz, date_column)
     if bucket == "10min":
         truncated = func.date_bin(literal_column("interval '10 minutes'"), local, literal_column("timestamp '2000-01-01'"))
     else:
         truncated = func.date_trunc(bucket, local)
-    start = func.timezone(tz, truncated).label("start")
+    return func.timezone(tz, truncated).label("start")
+
+
+async def list_bandwidth(session: AsyncSession, since: datetime, bucket: Bucket) -> Sequence[Row]:
+    start = bucket_start(TrafficSample.date, bucket)
     query = (
         select(start, func.sum(TrafficSample.rx_delta).label("rx_bytes"), func.sum(TrafficSample.tx_delta).label("tx_bytes"))
         .where(TrafficSample.date >= since)

@@ -7,6 +7,7 @@ import type { BandwidthBucket } from "@/lib/api";
 import { type BandwidthBar, formatBucket } from "@/lib/bandwidth-series";
 import { byteTicks, formatBytes } from "@/lib/bytes-format";
 import { SERIES_COLORS } from "@/lib/chart-colors";
+import { formatBytesPerSecond } from "@/lib/speed-format";
 import { formatTimeTick, timeTicks } from "@/lib/chart-time";
 
 const HEIGHT = 280;
@@ -38,7 +39,25 @@ function segmentsOf(bars: BandwidthBar[], key: "rx" | "tx"): Point[][] {
   return segments;
 }
 
-export function BandwidthChart({ bars, bucket, to }: { bars: BandwidthBar[]; bucket: BandwidthBucket; to: number }) {
+type BandwidthChartProps = {
+  bars: BandwidthBar[];
+  bucket: BandwidthBucket;
+  to: number;
+  /** Bytes, or bytes per second for speeds. A name and not a function, so server components can pass it. */
+  valueFormat?: "bytes" | "speed";
+  ariaLabel?: string;
+};
+
+const VALUE_FORMATTERS = { bytes: formatBytes, speed: formatBytesPerSecond };
+
+export function BandwidthChart({
+  bars,
+  bucket,
+  to,
+  valueFormat = "bytes",
+  ariaLabel = "Bytes downloaded and uploaded over time.",
+}: BandwidthChartProps) {
+  const formatValue = VALUE_FORMATTERS[valueFormat];
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -113,7 +132,7 @@ export function BandwidthChart({ bars, bucket, to }: { bars: BandwidthBar[]; buc
             width={width}
             height={HEIGHT}
             role="img"
-            aria-label="Bytes downloaded and uploaded over time. Use the left and right arrow keys to read values."
+            aria-label={`${ariaLabel} Use the left and right arrow keys to read values.`}
             tabIndex={0}
             onKeyDown={handleKeyDown}
             onFocus={() => setActiveIndex((index) => index ?? dataIndexes.at(-1) ?? null)}
@@ -137,7 +156,7 @@ export function BandwidthChart({ bars, bucket, to }: { bars: BandwidthBar[]; buc
                   dominantBaseline="middle"
                   className="fill-zinc-500 text-[11px] tabular-nums dark:fill-zinc-400"
                 >
-                  {formatBytes(tick)}
+                  {formatValue(tick)}
                 </text>
               </g>
             ))}
@@ -194,7 +213,7 @@ export function BandwidthChart({ bars, bucket, to }: { bars: BandwidthBar[]; buc
                   dominantBaseline="middle"
                   className="fill-zinc-900 text-xs font-semibold tabular-nums dark:fill-zinc-50"
                 >
-                  {formatBytes(item.last.value)}
+                  {formatValue(item.last.value)}
                 </text>
               </g>
             ))}
@@ -249,7 +268,7 @@ export function BandwidthChart({ bars, bucket, to }: { bars: BandwidthBar[]; buc
                 <span className="h-0.5 w-3 rounded-full" style={{ background: item.color }} />
                 {item.label}
                 <span className="ml-auto pl-3 font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                  {formatBytes(active[item.key])}
+                  {formatValue(active[item.key])}
                 </span>
               </p>
             ))}

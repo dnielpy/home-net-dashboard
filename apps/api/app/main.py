@@ -7,8 +7,8 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-from app import db, jobs, nano
-from app.routers import connection, health, live, stats
+from app import db, jobs, nano, wavlink
+from app.routers import connection, devices, health, live, stats
 
 load_dotenv()
 
@@ -23,6 +23,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         tasks.append(asyncio.create_task(jobs.run_check_job(interval)))
     if (speed_test_interval := jobs.get_speed_test_interval_seconds()) > 0:
         tasks.append(asyncio.create_task(jobs.run_speed_test_job(speed_test_interval)))
+    if (device_interval := jobs.get_device_interval_seconds()) > 0:
+        tasks.append(asyncio.create_task(jobs.run_device_job(device_interval)))
 
     yield
 
@@ -31,6 +33,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         with contextlib.suppress(asyncio.CancelledError):
             await task
     await nano.close_client()
+    await wavlink.close_client()
     await db.dispose_engine()
 
 
@@ -40,3 +43,4 @@ app.include_router(health.router)
 app.include_router(connection.router)
 app.include_router(stats.router)
 app.include_router(live.router)
+app.include_router(devices.router)

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, Integer, String, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -51,3 +51,32 @@ class SpeedTestResult(Base):
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     server_location: Mapped[str | None] = mapped_column(String(128))
     client_location: Mapped[str | None] = mapped_column(String(128))
+
+
+class Device(Base):
+    """Every device the router has listed, so the history keeps names the router forgets."""
+
+    __tablename__ = "device"
+
+    mac: Mapped[str] = mapped_column(String(17), primary_key=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
+    last_ip: Mapped[str | None] = mapped_column(String(45))
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class DeviceSample(Base):
+    """The speed of one online device at one moment; the bytes are estimated from it."""
+
+    __tablename__ = "device_sample"
+    __table_args__ = (Index("ix_device_sample_mac_date", "mac", "date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+    mac: Mapped[str] = mapped_column(String(17), nullable=False)
+    down_kbs: Mapped[int] = mapped_column(Integer, nullable=False)
+    up_kbs: Mapped[int] = mapped_column(Integer, nullable=False)
+    down_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    up_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)

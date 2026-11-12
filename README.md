@@ -40,6 +40,8 @@ pnpm db:migrate
 
 Set `NANO_USERNAME` and `NANO_PASSWORD` in `apps/api/.env` (the Nano's web UI login). The hop IPs default to the ones above; change them with `ROUTER_IP`, `NANO_IP`, `PROVIDER_IP` and `INTERNET_IP`.
 
+For the Devices page, set `ROUTER_PASSWORD` too (the Wavlink router's web UI password). The router's admin page defaults to `http://192.168.20.1`; change it with `ROUTER_ADMIN_URL`.
+
 ## Development
 
 ```bash
@@ -68,9 +70,16 @@ Ports are chosen so it can run next to the Bluetti project on the same machine.
 | `GET /connection-history?hours=24` | Periods online, offline and without checks |
 | `GET /outages?hours=24` | Outages with duration and the hop where the chain broke |
 | `GET /bandwidth?hours=24&bucket=hour` | Bytes downloaded and uploaded per hour or day (`hours` up to 720) |
+| `GET /devices` | Devices the router lists, live: IP, MAC, online, speed (KB/s), connected since, speed limits, internet blocked, plus the data each used in the last 24 h |
+| `GET /devices/{mac}/history?hours=24&bucket=hour` | One device's average and peak speed and its data used per 10 minutes, hour or day |
+| `POST /devices/{mac}/block` | `{"blocked": true}` cuts its internet, `false` gives it back |
+| `POST /devices/{mac}/limit` | `{"down_kbs": 100, "up_kbs": 0}` limits its speed in KB/s; 0 removes the limit |
+| `POST /devices/{mac}/name` | `{"name": "Living room TV"}` renames it in the router |
 | `GET /health`, `GET /health/db` | Health checks |
 
 Traffic comes from the Nano's wireless station counters (`/status.cgi`). Each sample stores the difference with the previous one; when the Nano's uptime goes down it rebooted, so the counter is counted from zero.
+
+Devices come from the Wavlink router's own web API (`/cgi-bin/wapi.cgi`, the one its "terminal" page uses): it logs in with `md5("admin" + password)`, then sends the token in the URL and as cookies, plus a `Referer` header (without it the router answers 502). The router only reports each device's current speed, never a byte counter, so every `DEVICE_SAMPLE_INTERVAL_SECONDS` (default 10; 0 turns it off) the API stores the speed of each online device and estimates the data used as that speed held since the previous sample. iPhones and Android phones use a private MAC per network, so the same phone can show up more than once.
 
 ## Scripts
 
@@ -95,7 +104,7 @@ Production runs the API, the web app and Postgres with `docker-compose.prod.yml`
 cp .env.production.example .env.production
 ```
 
-Edit `.env.production`: set a strong `POSTGRES_PASSWORD` and the Nano's `NANO_USERNAME` / `NANO_PASSWORD`. Then:
+Edit `.env.production`: set a strong `POSTGRES_PASSWORD`, the Nano's `NANO_USERNAME` / `NANO_PASSWORD` and the router's `ROUTER_PASSWORD`. Then:
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build

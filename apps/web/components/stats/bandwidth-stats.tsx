@@ -3,7 +3,8 @@ import { BandwidthTable } from "@/components/stats/bandwidth-table";
 import { ChartCard } from "@/components/stats/chart-card";
 import { RangeFilter } from "@/components/stats/range-filter";
 import { StatusMessage } from "@/components/status-message";
-import { ApiUnavailableError, type BandwidthBucket, type BandwidthResult, getBandwidth } from "@/lib/api";
+import { ApiUnavailableError, type BandwidthResult, getBandwidth } from "@/lib/api";
+import { BUCKET_LABELS, bucketFor } from "@/lib/bandwidth-bucket";
 import { buildBars } from "@/lib/bandwidth-series";
 import { formatBytes } from "@/lib/bytes-format";
 import { TIME_RANGES, parseTimeRange } from "@/lib/time-ranges";
@@ -11,14 +12,6 @@ import { TIME_RANGES, parseTimeRange } from "@/lib/time-ranges";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const HOUR_MS = 3_600_000;
-
-const BUCKET_LABELS: Record<BandwidthBucket, string> = { "10min": "10 minutes", hour: "hour", day: "day" };
-
-// Keeps every range between 6 and 72 bars
-function bucketFor(hours: number): BandwidthBucket {
-  if (hours <= 6) return "10min";
-  return hours <= 72 ? "hour" : "day";
-}
 
 export async function BandwidthStats({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;

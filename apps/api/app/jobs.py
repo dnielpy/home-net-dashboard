@@ -3,12 +3,13 @@ import logging
 import os
 import time
 
-from app import checks, db, nano, speed_test, traffic
+from app import checks, db, devices, nano, speed_test, traffic, wavlink
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_INTERVAL_SECONDS = 30
 DEFAULT_SPEED_TEST_INTERVAL_SECONDS = 600
+DEFAULT_DEVICE_INTERVAL_SECONDS = 10
 
 
 def get_interval_seconds() -> int:
@@ -17,6 +18,10 @@ def get_interval_seconds() -> int:
 
 def get_speed_test_interval_seconds() -> int:
     return int(os.environ.get("SPEED_TEST_INTERVAL_SECONDS", DEFAULT_SPEED_TEST_INTERVAL_SECONDS))
+
+
+def get_device_interval_seconds() -> int:
+    return int(os.environ.get("DEVICE_SAMPLE_INTERVAL_SECONDS", DEFAULT_DEVICE_INTERVAL_SECONDS))
 
 
 def _raise_if_cancelling() -> None:
@@ -88,5 +93,29 @@ async def run_speed_test_job(interval_seconds: int) -> None:
     while True:
         started = time.monotonic()
         await speed_test_once()
+        elapsed = time.monotonic() - started
+        await asyncio.sleep(max(0.0, interval_seconds - elapsed))
+
+
+async def sample_devices_once(interval_seconds: int) -> None:
+    try:
+        async with db.session_scope() as session:
+            samples = await devices.collect_devices(session, interval_seconds)
+    except Exception as err:
+        _raise_if_cancelling()
+        if isinstance(err, (wavlink.WavlinkUnavailableError, wavlink.WavlinkConfigError)):
+            logger.warning("Device sample skipped: %s", err)
+        else:
+            logger.exception("Device sample failed")
+        return
+
+    logger.debug("Device sample saved for %s online devices", len(samples))
+
+
+async def run_device_job(interval_seconds: int) -> None:
+    logger.info("Device job started, every %s seconds", interval_seconds)
+    while True:
+        started = time.monotonic()
+        await sample_devices_once(interval_seconds)
         elapsed = time.monotonic() - started
         await asyncio.sleep(max(0.0, interval_seconds - elapsed))

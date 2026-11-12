@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class HopInfoOut(BaseModel):
@@ -75,3 +75,51 @@ class SpeedTestOut(BaseModel):
     duration_ms: int | None
     server_location: str | None
     client_location: str | None
+
+
+class DeviceOut(BaseModel):
+    mac: str
+    name: str
+    ip: str | None
+    # False when the device is only known from the history (the router no longer lists it)
+    in_router: bool
+    online: bool
+    blocked: bool
+    down_kbs: int
+    up_kbs: int
+    connected_since: datetime | None
+    last_seen: datetime | None
+    limit_down_kbs: int
+    limit_up_kbs: int
+    usage_24h_down_bytes: int
+    usage_24h_up_bytes: int
+
+
+class DeviceHistoryPoint(BaseModel):
+    start: datetime
+    avg_down_kbs: float
+    max_down_kbs: int
+    avg_up_kbs: float
+    max_up_kbs: int
+    down_bytes: int
+    up_bytes: int
+
+
+class DeviceHistoryOut(BaseModel):
+    mac: str
+    total_down_bytes: int
+    total_up_bytes: int
+    items: list[DeviceHistoryPoint]
+
+
+class DeviceBlockIn(BaseModel):
+    blocked: bool
+
+
+class DeviceLimitIn(BaseModel):
+    down_kbs: int = Field(ge=0, le=1_000_000, description="Download limit in KB/s; 0 removes it.")
+    up_kbs: int = Field(ge=0, le=1_000_000, description="Upload limit in KB/s; 0 removes it.")
+
+
+class DeviceNameIn(BaseModel):
+    name: str = Field(min_length=1, max_length=32)

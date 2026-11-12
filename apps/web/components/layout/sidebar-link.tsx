@@ -7,7 +7,8 @@ import type { NavItem } from "@/components/layout/nav-items";
 
 export function SidebarLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void }) {
   const pathname = usePathname();
-  const active = pathname === item.href;
+  // Detail pages such as /devices/<mac> keep their section highlighted
+  const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
 
   return (
     <Link

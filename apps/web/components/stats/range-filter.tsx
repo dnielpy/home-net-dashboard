@@ -8,18 +8,20 @@ type RangeFilterProps = {
   ranges: TimeRange[];
   selected: TimeRange;
   searchParams: Record<string, string | string[] | undefined>;
+  /** The page the links stay on. */
+  path?: string;
 };
 
-function hrefFor(param: string, hours: number, searchParams: RangeFilterProps["searchParams"]): string {
+function hrefFor(path: string, param: string, hours: number, searchParams: RangeFilterProps["searchParams"]): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(searchParams)) {
     if (typeof value === "string") query.set(key, value);
   }
   query.set(param, String(hours));
-  return `/stats?${query.toString()}`;
+  return `${path}?${query.toString()}`;
 }
 
-export function RangeFilter({ label, param, ranges, selected, searchParams }: RangeFilterProps) {
+export function RangeFilter({ label, param, ranges, selected, searchParams, path = "/stats" }: RangeFilterProps) {
   return (
     <nav
       aria-label={label}
@@ -30,7 +32,7 @@ export function RangeFilter({ label, param, ranges, selected, searchParams }: Ra
         return (
           <Link
             key={range.hours}
-            href={hrefFor(param, range.hours, searchParams)}
+            href={hrefFor(path, param, range.hours, searchParams)}
             scroll={false}
             aria-current={active ? "page" : undefined}
             title={range.description}
