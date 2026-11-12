@@ -23,6 +23,10 @@ export async function OutageStats({ searchParams }: { searchParams: SearchParams
     throw error;
   }
 
+  // Longest first; between equal ones, the most recent first
+  const longestFirst = outages.toSorted(
+    (a, b) => b.duration_hours - a.duration_hours || Date.parse(b.start) - Date.parse(a.start),
+  );
   const totalHours = outages.reduce((sum, outage) => sum + outage.duration_hours, 0);
   const count = `${outages.length} ${outages.length === 1 ? "outage" : "outages"}`;
 
@@ -47,8 +51,8 @@ export async function OutageStats({ searchParams }: { searchParams: SearchParams
         </p>
       ) : (
         <>
-          <OutageChart outages={outages} />
-          <OutageTable outages={outages} />
+          <OutageChart outages={longestFirst} />
+          <OutageTable outages={longestFirst} />
         </>
       )}
     </ChartCard>
