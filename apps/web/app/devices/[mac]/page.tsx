@@ -9,6 +9,9 @@ import { ChartCardSkeleton } from "@/components/stats/chart-card-skeleton";
 
 const REFRESH_INTERVAL_MS = 60_000;
 
+// The MAC is only known at request time, and the sidebar reads the path, so this page renders on each request
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Device · Home Net",
 };
