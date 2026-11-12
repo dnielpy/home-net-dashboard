@@ -129,10 +129,104 @@ body {
   }
 }
 
+/* The "Connected" ball: grows in from the chain, then glows and ripples green for as long as it is shown */
+@keyframes connected-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.connected-enter {
+  animation: connected-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes connected-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 16px rgb(12 163 12 / 0.45),
+      0 0 40px rgb(12 163 12 / 0.25);
+  }
+  50% {
+    box-shadow:
+      0 0 32px rgb(12 163 12 / 0.9),
+      0 0 80px rgb(12 163 12 / 0.55);
+  }
+}
+
+.connected-glow {
+  animation: connected-glow 2s ease-in-out infinite;
+}
+
+@keyframes connected-ripple {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+.connected-ripple {
+  animation: connected-ripple 2s ease-out infinite;
+}
+
+/* Floats up and down with a slight sway */
+@keyframes connected-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-5px) rotate(-1.5deg);
+  }
+  75% {
+    transform: translateY(2px) rotate(1.5deg);
+  }
+}
+
+.connected-float {
+  animation: connected-float 5s ease-in-out infinite;
+}
+
+/* A diagonal flash of light that crosses the ball, then waits before the next one */
+@keyframes connected-shine {
+  0% {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  45%,
+  100% {
+    transform: translateX(120%) skewX(-20deg);
+  }
+}
+
+.connected-shine {
+  background: linear-gradient(90deg, transparent 20%, rgb(255 255 255 / 0.75) 50%, transparent 80%);
+  animation: connected-shine 2.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .link-flow,
-  .hop-pinging {
+  .hop-pinging,
+  .connected-glow,
+  .connected-ripple,
+  .connected-float {
     animation: none;
+  }
+
+  .connected-shine {
+    display: none;
+  }
+
+  .connected-enter {
+    animation-duration: 0.01s;
   }
 
   .hop-flash,

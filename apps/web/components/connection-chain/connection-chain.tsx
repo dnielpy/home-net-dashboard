@@ -2,12 +2,16 @@
 
 import { Fragment, useEffect, useState } from "react";
 
+import { ConnectedBadge } from "@/components/connection-chain/connected-badge";
 import { HopLink } from "@/components/connection-chain/hop-link";
 import { HopNode } from "@/components/connection-chain/hop-node";
 import { buildHopViews, linkState, sweepResult } from "@/components/connection-chain/hop-state";
 import { useChainSweep } from "@/components/connection-chain/use-chain-sweep";
 import { RefreshIcon } from "@/components/icons/refresh-icon";
 import type { HopInfo, LatestCheck } from "@/lib/api";
+
+// How long the hops flash together before they collapse into the "Connected" ball
+const CELEBRATION_MS = 1_000;
 
 function minutesAgo(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
@@ -34,6 +38,17 @@ export function ConnectionChain({ hops, latest }: ConnectionChainProps) {
   }, [checkedAt]);
   const { online, breakAt } = sweepResult(views);
   const internet = views.at(-1);
+  const connected = done && online && !apiError;
+
+  // Sweep whose chain has collapsed into the "Connected" ball; a restored result starts collapsed
+  const [collapsedSweep, setCollapsedSweep] = useState<number | null>(connected && restored ? sweep : null);
+  useEffect(() => {
+    if (!connected) return;
+    // Lets the hops play their celebration flash before they collapse
+    const id = setTimeout(() => setCollapsedSweep(sweep), restored ? 0 : CELEBRATION_MS);
+    return () => clearTimeout(id);
+  }, [connected, restored, sweep]);
+  const collapsed = connected && collapsedSweep === sweep;
 
   let headline;
   if (phase.kind === "pinging") {
@@ -71,14 +86,18 @@ export function ConnectionChain({ hops, latest }: ConnectionChainProps) {
         </p>
       </div>
 
-      <ol aria-label="Connection chain" className="flex w-full flex-col md:flex-row md:items-start">
-        {views.map((hop, index) => (
-          <Fragment key={hop.name}>
-            {index > 0 && <HopLink state={linkState(hop)} />}
-            <HopNode hop={hop} sweep={sweep} animate={!restored} celebrate={done && online && !apiError} />
-          </Fragment>
-        ))}
-      </ol>
+      {collapsed ? (
+        <ConnectedBadge key={sweep} animate={!restored} />
+      ) : (
+        <ol aria-label="Connection chain" className="flex w-full flex-col md:flex-row md:items-start">
+          {views.map((hop, index) => (
+            <Fragment key={hop.name}>
+              {index > 0 && <HopLink state={linkState(hop)} />}
+              <HopNode hop={hop} sweep={sweep} animate={!restored} celebrate={connected} />
+            </Fragment>
+          ))}
+        </ol>
+      )}
 
       <button
         type="button"
