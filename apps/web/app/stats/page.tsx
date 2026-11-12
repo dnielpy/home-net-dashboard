@@ -24,11 +24,11 @@ export default function StatsPage({ searchParams }: PageProps<"/stats">) {
       <Suspense fallback={<ChartCardSkeleton height={150} />}>
         <HistoryStats searchParams={searchParams} />
       </Suspense>
-      <Suspense fallback={<ChartCardSkeleton height={220} />}>
-        <OutageStats searchParams={searchParams} />
-      </Suspense>
       <Suspense fallback={<ChartCardSkeleton height={380} />}>
         <BandwidthStats searchParams={searchParams} />
+      </Suspense>
+      <Suspense fallback={<ChartCardSkeleton height={220} />}>
+        <OutageStats searchParams={searchParams} />
       </Suspense>
       <AutoRefresh intervalMs={REFRESH_INTERVAL_MS} />
     </main>
