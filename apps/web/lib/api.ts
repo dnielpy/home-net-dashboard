@@ -56,19 +56,6 @@ export async function getLatestCheck(): Promise<LatestCheck | null> {
   return getJson("/connection/latest", { cache: "no-store" });
 }
 
-export type LatestSpeedTest = {
-  measured_at: string;
-  download_mbps: number;
-  ping_ms: number | null;
-  duration_ms: number | null;
-  server_location: string | null;
-  client_location: string | null;
-};
-
-export async function getLatestSpeedTest(): Promise<LatestSpeedTest | null> {
-  return getJson("/speed-test/latest", { cache: "no-store" });
-}
-
 export type Period = { start: string; end: string; duration_hours: number };
 
 export type OutagePeriod = Period & { break_at: string | null };

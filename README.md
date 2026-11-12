@@ -6,7 +6,7 @@ Full stack app to monitor the home internet link. Every 30 seconds the API pings
 Router (10.40.43.100) → Nano Loco 5AC (10.40.43.99) → Provider AP (10.40.43.125) → Internet (1.1.1.1)
 ```
 
-The connection is cut right after the last hop that answers. The dashboard shows the chain live; the stats page shows online/offline history, outages (with the hop where the chain broke) and bandwidth used.
+The connection is cut right after the last hop that answers. The dashboard shows the chain live; the speed test page measures the download speed when opened; the stats page shows online/offline history, outages (with the hop where the chain broke) and bandwidth used.
 
 ## Structure
 
@@ -114,7 +114,7 @@ To update a running deployment later, run `./scripts/update.sh`: it stops the co
 
 - Web: http://HOST:3010 · API: http://HOST:3011 (ports set by `WEB_PORT` / `API_PORT`)
 - Postgres is not published outside the Docker network.
-- The API runs a speed test every `SPEED_TEST_INTERVAL_SECONDS` (default 600, about 1.4 GB a day on a 5 Mbps link; 0 turns it off) and stores it, so opening the dashboard never measures.
+- The API runs a speed test every `SPEED_TEST_INTERVAL_SECONDS` (default 600, about 1.4 GB a day on a 5 Mbps link; 0 turns it off) and stores it. The speed test page measures again every time it is opened.
 - The API image ships Node and `fast-test-cli` for the speed test. Outside Docker, install it with `npm install --global fast-test-cli` (or set `FAST_CLI` to its `cli.js`).
 - The API sends pings without root through unprivileged ICMP sockets, enabled for the container with the `net.ipv4.ping_group_range` sysctl.
 - Dates and daily bandwidth use `TZ` (default `America/Havana`).

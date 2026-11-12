@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { RefreshIcon } from "@/components/icons/refresh-icon";
-import type { LatestSpeedTest, SpeedTestEvent } from "@/lib/api";
-import { formatTooltipTime } from "@/lib/chart-time";
+import type { SpeedTestEvent } from "@/lib/api";
 
-type Result = Omit<Extract<SpeedTestEvent, { type: "result" }>, "type"> & { measured_at?: string };
+type Result = Omit<Extract<SpeedTestEvent, { type: "result" }>, "type">;
 
 type TestState = { kind: "measuring"; mbps: number | null } | { kind: "done"; result: Result } | { kind: "error" };
 
@@ -38,20 +37,13 @@ function InfoItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-/**
- * A download speed test laid out like fast.com: one big number that climbs while it measures. With an
- * `initialResult` (the latest test stored by the server) it shows that result and only measures again when asked.
- */
-export function SpeedTestCard({ initialResult }: { initialResult: LatestSpeedTest | null }) {
+/** A full screen download speed test laid out like fast.com: it measures as soon as it mounts, with one big number that climbs. */
+export function SpeedTestCard() {
   const [run, setRun] = useState(0);
-  const [state, setState] = useState<TestState>(
-    initialResult ? { kind: "done", result: initialResult } : { kind: "measuring", mbps: null },
-  );
-  const skipFirstRun = run === 0 && initialResult !== null;
+  const [state, setState] = useState<TestState>({ kind: "measuring", mbps: null });
   const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
-    if (skipFirstRun) return;
     const controller = new AbortController();
 
     async function measure() {
@@ -76,7 +68,7 @@ export function SpeedTestCard({ initialResult }: { initialResult: LatestSpeedTes
       if (!controller.signal.aborted) setState({ kind: "error" });
     });
     return () => controller.abort();
-  }, [run, skipFirstRun]);
+  }, [run]);
 
   function runAgain() {
     setState({ kind: "measuring", mbps: null });
@@ -90,9 +82,9 @@ export function SpeedTestCard({ initialResult }: { initialResult: LatestSpeedTes
   return (
     <section
       aria-labelledby="speed-test-title"
-      className="w-full rounded-2xl border border-zinc-200 bg-white px-6 py-10 text-center dark:border-zinc-800 dark:bg-zinc-900"
+      className="w-full text-center"
     >
-      <h2 id="speed-test-title" className="text-lg text-zinc-500 dark:text-zinc-400">
+      <h2 id="speed-test-title" className="text-xl text-zinc-500 sm:text-2xl dark:text-zinc-400">
         {state.kind === "error" ? "Could not measure your internet speed" : "Your internet speed is"}
       </h2>
 
@@ -103,13 +95,13 @@ export function SpeedTestCard({ initialResult }: { initialResult: LatestSpeedTes
           className="flex items-baseline gap-2"
         >
           <span
-            className={`text-8xl font-extralight tabular-nums transition-colors duration-500 sm:text-9xl ${
+            className={`text-8xl font-extralight tabular-nums transition-colors duration-500 sm:text-9xl lg:text-[12rem] lg:leading-none ${
               measuring ? "text-zinc-400 dark:text-zinc-500" : "text-zinc-900 dark:text-zinc-50"
             }`}
           >
             {mbps !== null ? formatSpeed(mbps) : "0"}
           </span>
-          <span className="text-2xl font-light text-zinc-500 sm:text-3xl dark:text-zinc-400">Mbps</span>
+          <span className="text-2xl font-light text-zinc-500 sm:text-3xl lg:text-4xl dark:text-zinc-400">Mbps</span>
         </p>
 
         <button
@@ -133,11 +125,9 @@ export function SpeedTestCard({ initialResult }: { initialResult: LatestSpeedTes
       <p className="mt-3 text-sm text-zinc-500 tabular-nums dark:text-zinc-400">
         {measuring
           ? "Measuring with fast.com…"
-          : result?.measured_at
-            ? `Measured ${formatTooltipTime(Date.parse(result.measured_at))} · every 10 minutes`
-            : result
-              ? "Just measured"
-              : "\u00a0"}
+          : result
+            ? "Just measured"
+            : "\u00a0"}
       </p>
 
       <button

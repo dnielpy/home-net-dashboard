@@ -7,8 +7,7 @@ import { HopNode } from "@/components/connection-chain/hop-node";
 import { buildHopViews, linkState, sweepResult } from "@/components/connection-chain/hop-state";
 import { useChainSweep } from "@/components/connection-chain/use-chain-sweep";
 import { RefreshIcon } from "@/components/icons/refresh-icon";
-import { LiveCards } from "@/components/live-cards/live-cards";
-import type { HopInfo, LatestCheck, LatestSpeedTest } from "@/lib/api";
+import type { HopInfo, LatestCheck } from "@/lib/api";
 
 function minutesAgo(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
@@ -18,10 +17,9 @@ function minutesAgo(ms: number): string {
 type ConnectionChainProps = {
   hops: HopInfo[];
   latest: LatestCheck | null;
-  latestSpeedTest: LatestSpeedTest | null;
 };
 
-export function ConnectionChain({ hops, latest, latestSpeedTest }: ConnectionChainProps) {
+export function ConnectionChain({ hops, latest }: ConnectionChainProps) {
   const { probes, phase, sweep, apiError, checkedAt, restored, restart } = useChainSweep(hops, latest);
   const views = buildHopViews(hops, probes);
   const done = phase.kind === "done";
@@ -91,8 +89,6 @@ export function ConnectionChain({ hops, latest, latestSpeedTest }: ConnectionCha
         <RefreshIcon className={`h-4 w-4 ${done ? "" : "animate-spin"}`} />
         {done ? "Check again" : "Checking…"}
       </button>
-
-      <LiveCards key={sweep} visible={done && online && !apiError} speedTest={restored ? latestSpeedTest : null} />
     </section>
   );
 }

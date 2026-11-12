@@ -4,18 +4,15 @@ import {
   ApiUnavailableError,
   getHops,
   getLatestCheck,
-  getLatestSpeedTest,
   type HopInfo,
   type LatestCheck,
-  type LatestSpeedTest,
 } from "@/lib/api";
 
 export async function LiveConnectionView() {
   let hops: HopInfo[];
   let latest: LatestCheck | null;
-  let latestSpeedTest: LatestSpeedTest | null;
   try {
-    [hops, latest, latestSpeedTest] = await Promise.all([getHops(), getLatestCheck(), getLatestSpeedTest()]);
+    [hops, latest] = await Promise.all([getHops(), getLatestCheck()]);
   } catch (error) {
     if (error instanceof ApiUnavailableError) {
       return <StatusMessage title="API unavailable" body="Could not load data from the API. Make sure it is running." />;
@@ -23,5 +20,5 @@ export async function LiveConnectionView() {
     throw error;
   }
 
-  return <ConnectionChain hops={hops} latest={latest} latestSpeedTest={latestSpeedTest} />;
+  return <ConnectionChain hops={hops} latest={latest} />;
 }
