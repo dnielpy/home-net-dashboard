@@ -96,10 +96,28 @@ export type ConnectionHistory = {
   fetchedAt: number;
 };
 
-export async function getConnectionHistory(hours: number): Promise<ConnectionHistory> {
+export type DayHistory = ConnectionHistory & {
+  // Today's 00:00 and the next 00:00 in the server's time zone (TZ)
+  dayStart: number;
+  dayEnd: number;
+};
+
+/** Today's connection history, from midnight to the moment of the fetch. */
+export async function getTodayHistory(): Promise<DayHistory> {
   await connection();
   const fetchedAt = Date.now();
-  return { segments: await getJson(`/connection-history?hours=${hours}`), fetchedAt };
+  const start = new Date(fetchedAt);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  // Enough hours back to reach midnight
+  const hours = Math.max(1, Math.ceil((fetchedAt - start.getTime()) / 3_600_000));
+  return {
+    segments: await getJson(`/connection-history?hours=${hours}`),
+    fetchedAt,
+    dayStart: start.getTime(),
+    dayEnd: end.getTime(),
+  };
 }
 
 export type Outage = {
