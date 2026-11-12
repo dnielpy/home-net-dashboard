@@ -71,20 +71,24 @@ export async function DeviceUsageStats({ searchParams }: { searchParams: SearchP
               const total = device.down_bytes + device.up_bytes;
               return (
                 <li key={device.mac} className="flex h-9 items-center">
+                  {/* On phones only the icon shows, so the bars get the width; the name stays for screen readers */}
                   <Link
                     href={`/devices/${encodeURIComponent(device.mac)}`}
-                    className="flex w-32 shrink-0 items-center gap-2 pr-3 text-sm text-zinc-700 hover:text-zinc-900 sm:w-44 dark:text-zinc-300 dark:hover:text-zinc-50"
+                    title={device.name || device.mac}
+                    className="flex w-8 shrink-0 items-center gap-2 pr-3 text-sm text-zinc-700 hover:text-zinc-900 sm:w-44 dark:text-zinc-300 dark:hover:text-zinc-50"
                   >
                     <DeviceKindIcon kind={kind} className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
                     <span className="sr-only">{KIND_LABELS[kind]}:</span>
-                    <span className={`truncate ${device.name ? "" : "font-mono text-xs"}`}>
+                    <span
+                      className={`sr-only truncate sm:not-sr-only ${device.name ? "" : "font-mono text-xs"}`}
+                    >
                       {device.name || device.mac}
                     </span>
                   </Link>
                   <div
                     tabIndex={0}
                     aria-label={`${formatBytes(total)}: ${formatBytes(device.down_bytes)} down, ${formatBytes(device.up_bytes)} up`}
-                    className="group relative mr-28 flex min-w-0 flex-1 items-center outline-none"
+                    className="group relative mr-16 flex min-w-0 flex-1 items-center outline-none"
                   >
                     <span className="flex h-5 min-w-0.5 overflow-hidden rounded-r" style={{ width: percent(total) }}>
                       <span

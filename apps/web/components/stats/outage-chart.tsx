@@ -24,7 +24,7 @@ export function OutageChart({ outages: all }: { outages: Outage[] }) {
   return (
     <div>
       <div className="flex text-xs">
-        <ul className="w-28 shrink-0 sm:w-32" aria-hidden>
+        <ul className="w-24 shrink-0 sm:w-32" aria-hidden>
           {outages.map((outage) => (
             <li key={outage.start} className="flex h-9 items-center pr-3 tabular-nums text-zinc-600 dark:text-zinc-400">
               {formatDateTime(outage.start)}
@@ -33,7 +33,7 @@ export function OutageChart({ outages: all }: { outages: Outage[] }) {
         </ul>
 
         <div className="relative min-w-0 flex-1">
-          <div className="relative mr-28">
+          <div className="relative mr-14 sm:mr-28">
             {ticks.map((tick) => (
               <span
                 key={tick}
@@ -68,11 +68,12 @@ export function OutageChart({ outages: all }: { outages: Outage[] }) {
                     style={{ left: percent(outage.duration_hours) }}
                   >
                     {formatDuration(outage.duration_hours)}
-                    <span className="font-normal text-zinc-500 dark:text-zinc-400">
+                    {/* Phones keep only the duration beside the bar; the hop stays in the tooltip */}
+                    <span className="hidden font-normal text-zinc-500 sm:inline dark:text-zinc-400">
                       {" "}
                       · {hopLabel(outage.break_at)}
-                      {outage.ongoing && " · ongoing"}
                     </span>
+                    {outage.ongoing && <span className="font-normal text-zinc-500 dark:text-zinc-400"> · ongoing</span>}
                   </span>
 
                   <span className="pointer-events-none invisible absolute bottom-full left-0 z-10 mb-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-sm group-hover:visible group-focus-visible:visible dark:border-zinc-700 dark:bg-zinc-800">
