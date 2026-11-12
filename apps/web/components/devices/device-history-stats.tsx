@@ -11,14 +11,12 @@ import { TIME_RANGES, parseTimeRange } from "@/lib/time-ranges";
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const HOUR_MS = 3_600_000;
-const KB = 1024;
 
-type DeviceHistoryStatsProps = { mac: string; kind: "speed" | "usage"; searchParams: SearchParams };
+type DeviceHistoryStatsProps = { mac: string; searchParams: SearchParams };
 
-/** The device's average speed or its estimated usage over time, with its own range filter. */
-export async function DeviceHistoryStats({ mac, kind, searchParams }: DeviceHistoryStatsProps) {
-  const param = kind === "speed" ? "speedHours" : "usageHours";
-  const range = parseTimeRange(searchParams[param], TIME_RANGES);
+/** The device's estimated usage over time, with its own range filter. */
+export async function DeviceHistoryStats({ mac, searchParams }: DeviceHistoryStatsProps) {
+  const range = parseTimeRange(searchParams.usageHours, TIME_RANGES);
   const bucket = bucketFor(range.hours);
 
   let result: DeviceHistoryResult;
@@ -33,28 +31,20 @@ export async function DeviceHistoryStats({ mac, kind, searchParams }: DeviceHist
 
   const { history, fetchedAt: to } = result;
   const from = to - range.hours * HOUR_MS;
-  // The chart reads rx/tx: download and upload, in bytes per second for speed or bytes for usage
-  const points = history.items.map((item) =>
-    kind === "speed"
-      ? { start: item.start, rx_bytes: item.avg_down_kbs * KB, tx_bytes: item.avg_up_kbs * KB }
-      : { start: item.start, rx_bytes: item.down_bytes, tx_bytes: item.up_bytes },
-  );
+  // The chart reads rx/tx: bytes downloaded and uploaded
+  const points = history.items.map((item) => ({ start: item.start, rx_bytes: item.down_bytes, tx_bytes: item.up_bytes }));
   const bars = buildBars(points, bucket, from, to);
-  const id = `${kind}-chart-title`;
-  const subtitle =
-    kind === "speed"
-      ? `${range.description} · average per ${BUCKET_LABELS[bucket]}`
-      : `${range.description} · ${formatBytes(history.total_down_bytes)} down · ${formatBytes(history.total_up_bytes)} up · per ${BUCKET_LABELS[bucket]}`;
+  const subtitle = `${range.description} · ${formatBytes(history.total_down_bytes)} down · ${formatBytes(history.total_up_bytes)} up · per ${BUCKET_LABELS[bucket]}`;
 
   return (
     <ChartCard
-      id={id}
-      title={kind === "speed" ? "Speed" : "Data used (estimated)"}
+      id="usage-chart-title"
+      title="Data used (estimated)"
       subtitle={subtitle}
       actions={
         <RangeFilter
-          label={kind === "speed" ? "Speed time range" : "Data used time range"}
-          param={param}
+          label="Data used time range"
+          param="usageHours"
           ranges={TIME_RANGES}
           selected={range}
           searchParams={searchParams}
@@ -66,14 +56,6 @@ export async function DeviceHistoryStats({ mac, kind, searchParams }: DeviceHist
         <p className="flex h-32 items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
           No samples of this device in this period.
         </p>
-      ) : kind === "speed" ? (
-        <BandwidthChart
-          bars={bars}
-          bucket={bucket}
-          to={to}
-          valueFormat="speed"
-          ariaLabel="Average download and upload speed over time."
-        />
       ) : (
         <BandwidthChart bars={bars} bucket={bucket} to={to} ariaLabel="Data downloaded and uploaded over time." />
       )}

@@ -29,10 +29,7 @@ export default async function DevicePage({ params, searchParams }: PageProps<"/d
         <DeviceDetail mac={mac} />
       </Suspense>
       <Suspense fallback={<ChartCardSkeleton height={340} />}>
-        <DeviceHistoryStats mac={mac} kind="speed" searchParams={query} />
-      </Suspense>
-      <Suspense fallback={<ChartCardSkeleton height={340} />}>
-        <DeviceHistoryStats mac={mac} kind="usage" searchParams={query} />
+        <DeviceHistoryStats mac={mac} searchParams={query} />
       </Suspense>
       <AutoRefresh intervalMs={REFRESH_INTERVAL_MS} />
     </main>
