@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { RefreshIcon } from "@/components/icons/refresh-icon";
 import type { SpeedTestEvent } from "@/lib/api";
+import { readNdjson } from "@/lib/ndjson";
 
 type Result = Omit<Extract<SpeedTestEvent, { type: "result" }>, "type">;
 
@@ -11,21 +12,6 @@ type TestState = { kind: "measuring"; mbps: number | null } | { kind: "done"; re
 
 function formatSpeed(mbps: number): string {
   return mbps >= 100 ? mbps.toFixed(0) : mbps.toFixed(1);
-}
-
-async function readEvents(response: Response, onEvent: (event: SpeedTestEvent) => void): Promise<void> {
-  const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader();
-  let buffer = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += value;
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (line.trim()) onEvent(JSON.parse(line));
-    }
-  }
 }
 
 function InfoItem({ label, value }: { label: string; value: string }) {
@@ -51,7 +37,7 @@ export function SpeedTestCard() {
       if (!response.ok || !response.body) throw new Error(`Speed test responded with ${response.status}`);
 
       let finished = false;
-      await readEvents(response, (event) => {
+      await readNdjson<SpeedTestEvent>(response, (event) => {
         if (event.type === "progress") setState({ kind: "measuring", mbps: event.mbps });
         else if (event.type === "result") {
           finished = true;

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import { ChainSkeleton } from "@/components/chain-skeleton";
 import { LiveConnectionView } from "@/components/live-connection";
+import { LiveDownload } from "@/components/throughput/live-download";
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
       <Suspense fallback={<ChainSkeleton />}>
         <LiveConnectionView />
       </Suspense>
+      <LiveDownload />
     </main>
   );
 }

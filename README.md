@@ -63,6 +63,7 @@ Ports are chosen so it can run next to the Bluetti project on the same machine.
 | `GET /connection/hops` | The hops of the chain in order, with their IPs |
 | `GET /connection/live/{hop}` | Pings one hop once a second for about 3 seconds; the dashboard walks the chain with it |
 | `GET /connection/live` | Pings every hop now: `online`, `break_at` and each hop's latency |
+| `GET /connection/throughput` | Streams the Nano's download and upload speed as NDJSON, read from its counters every second; the dashboard shows the download live |
 | `GET /connection/latest` | The latest check stored by the background job; the dashboard shows it on load |
 | `GET /speed-test/latest` | The latest stored speed test |
 | `POST /speed-test` | Measures download speed with fast.com through [`fast-test-cli`](https://www.npmjs.com/package/fast-test-cli), streaming the speed as NDJSON while it measures (10–30 s) |

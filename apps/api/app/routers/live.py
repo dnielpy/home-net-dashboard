@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import speed_test
+from app import speed_test, throughput
 from app.db import get_session
 from app.schemas import SpeedTestOut
 
@@ -28,6 +28,22 @@ async def _ndjson(events: AsyncIterator[dict]) -> AsyncIterator[str]:
 )
 async def run_speed_test() -> StreamingResponse:
     return StreamingResponse(_ndjson(speed_test.speed_test_events()), media_type="application/x-ndjson")
+
+
+@router.get(
+    "/connection/throughput",
+    description=(
+        "The Nano's live speed, read from its counters every second. Streams newline-delimited JSON until the client "
+        'leaves: `{"type": "rate", "rx_bytes_per_second", "tx_bytes_per_second"}` (rx is download), or '
+        '`{"type": "error", "detail"}` when the Nano cannot be read.'
+    ),
+)
+async def live_throughput() -> StreamingResponse:
+    return StreamingResponse(
+        _ndjson(throughput.throughput_events()),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.get(

@@ -216,6 +216,24 @@ export async function streamSpeedTest(signal: AbortSignal): Promise<Response> {
   return response;
 }
 
+export type ThroughputEvent =
+  | { type: "rate"; rx_bytes_per_second: number; tx_bytes_per_second: number }
+  | { type: "error"; detail: string };
+
+/** The Nano's live speed; the body streams one ThroughputEvent per line, about once a second, until it is aborted. */
+export async function streamThroughput(signal: AbortSignal): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(apiUrl("/connection/throughput"), { cache: "no-store", signal });
+  } catch (error) {
+    throw new ApiUnavailableError("Could not reach the API", { cause: error });
+  }
+  if (!response.ok || !response.body) {
+    throw new ApiUnavailableError(`API responded with ${response.status}`);
+  }
+  return response;
+}
+
 export type Device = {
   mac: string;
   name: string;
