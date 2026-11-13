@@ -86,3 +86,41 @@ def test_throughput_endpoint_streams_ndjson(monkeypatch: pytest.MonkeyPatch) -> 
     assert [json.loads(line) for line in response.text.splitlines()] == [
         {"type": "rate", "rx_bytes_per_second": 125_000, "tx_bytes_per_second": 1_000}
     ]
+
+
+def test_current_throughput_is_the_first_rate(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_events():
+        yield {"type": "error", "detail": "down"}
+        yield {"type": "rate", "rx_bytes_per_second": 125_000, "tx_bytes_per_second": 1_000}
+
+    monkeypatch.setattr(throughput, "throughput_events", fake_events)
+
+    response = client.get("/connection/throughput/current")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["rx_bytes_per_second"], body["tx_bytes_per_second"]) == (125_000, 1_000)
+    assert body["measured_at"]
+
+
+def test_current_throughput_without_a_rate_is_503(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_events():
+        yield {"type": "error", "detail": "no login"}
+
+    monkeypatch.setattr(throughput, "throughput_events", fake_events)
+
+    response = client.get("/connection/throughput/current")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "no login"
+
+
+def test_current_rate_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def never():
+        await asyncio.sleep(10)
+        yield {}
+
+    monkeypatch.setattr(throughput, "throughput_events", never)
+
+    with pytest.raises(throughput.ThroughputUnavailableError, match="did not answer"):
+        asyncio.run(throughput.current_rate(timeout=0.01))

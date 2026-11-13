@@ -9,6 +9,7 @@ from app import nano
 from app.traffic import counter_delta
 
 SAMPLE_INTERVAL_SECONDS = 1.0
+CURRENT_RATE_TIMEOUT_SECONDS = 5.0
 # The rate is measured over the last few readings, so a counter that updates late does not show as 0 and then double
 WINDOW_READINGS = 3
 
@@ -54,3 +55,25 @@ async def throughput_events(
                 yield {"type": "rate", "rx_bytes_per_second": round(rx), "tx_bytes_per_second": round(tx)}
             window.append(reading)
         await asyncio.sleep(interval)
+
+
+class ThroughputUnavailableError(Exception):
+    pass
+
+
+async def current_rate(timeout: float = CURRENT_RATE_TIMEOUT_SECONDS) -> tuple[float, float]:
+    """The Nano's speed right now (rx, tx bytes per second): the first rate of a live reading, about a second in.
+    Raises ThroughputUnavailableError when the Nano cannot be read within `timeout` seconds."""
+    detail = "The Nano did not answer in time"
+    events = throughput_events()
+    try:
+        async with asyncio.timeout(timeout):
+            async for event in events:
+                if event["type"] == "rate":
+                    return event["rx_bytes_per_second"], event["tx_bytes_per_second"]
+                detail = event["detail"]
+    except TimeoutError:
+        pass
+    finally:
+        await events.aclose()
+    raise ThroughputUnavailableError(detail)

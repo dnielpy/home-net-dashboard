@@ -71,6 +71,12 @@ class BandwidthOut(BaseModel):
     items: list[BandwidthPoint]
 
 
+class ThroughputNowOut(BaseModel):
+    measured_at: datetime
+    rx_bytes_per_second: int
+    tx_bytes_per_second: int
+
+
 class SpeedTestOut(BaseModel):
     measured_at: datetime
     download_mbps: float

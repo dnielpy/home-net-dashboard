@@ -1,13 +1,14 @@
 import json
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import speed_test, throughput
 from app.db import get_session
-from app.schemas import SpeedTestOut
+from app.schemas import SpeedTestOut, ThroughputNowOut
 
 router = APIRouter(tags=["live"])
 
@@ -43,6 +44,26 @@ async def live_throughput() -> StreamingResponse:
         _ndjson(throughput.throughput_events()),
         media_type="application/x-ndjson",
         headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get(
+    "/connection/throughput/current",
+    response_model=ThroughputNowOut,
+    description=(
+        "The Nano's speed right now, as the first rate of a live reading (about a second). 503 when the Nano cannot "
+        "be read within 5 seconds."
+    ),
+)
+async def current_throughput() -> ThroughputNowOut:
+    try:
+        rx, tx = await throughput.current_rate()
+    except throughput.ThroughputUnavailableError as err:
+        raise HTTPException(status_code=503, detail=str(err)) from err
+    return ThroughputNowOut(
+        measured_at=datetime.now(UTC),
+        rx_bytes_per_second=round(rx),
+        tx_bytes_per_second=round(tx),
     )
 
 
