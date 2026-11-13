@@ -21,6 +21,6 @@ echo "==> Pulling latest code"
 git pull --ff-only
 
 echo "==> Building and starting containers"
-compose up -d --build --wait
+compose up -d --build --wait --remove-orphans
 
 compose ps

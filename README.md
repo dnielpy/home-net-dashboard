@@ -99,7 +99,7 @@ Devices come from the Wavlink router's own web API (`/cgi-bin/wapi.cgi`, the one
 
 ## Production (Docker)
 
-Production runs the API, the web app and Postgres with `docker-compose.prod.yml`, on a Linux host inside the home network (the server behind the router).
+Production runs the API and Postgres with `docker-compose.prod.yml`, on a Linux host inside the home network (the server behind the router). The pages are served by [Home Server Dashboard](https://github.com/dnielpy/home-server-dashboard) (Network module), which reads this API; `apps/web` is kept for local development only.
 
 ```bash
 cp .env.production.example .env.production
@@ -113,7 +113,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 
 To update a running deployment later, run `./scripts/update.sh`: it stops the containers, runs `git pull` and builds and starts them again, waiting until they are healthy. The database volume is kept.
 
-- Web: http://HOST:3010 · API: http://HOST:3011 (ports set by `WEB_PORT` / `API_PORT`)
+- API: http://HOST:3011 (port set by `API_PORT`)
 - Postgres is not published outside the Docker network.
 - The API runs a speed test every `SPEED_TEST_INTERVAL_SECONDS` (default 600, about 1.4 GB a day on a 5 Mbps link; 0 turns it off) and stores it. The speed test page measures again every time it is opened.
 - The API image ships Node and `fast-test-cli` for the speed test. Outside Docker, install it with `npm install --global fast-test-cli` (or set `FAST_CLI` to its `cli.js`).
