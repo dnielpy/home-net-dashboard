@@ -96,27 +96,47 @@ export type ConnectionHistory = {
   fetchedAt: number;
 };
 
-export type DayHistory = ConnectionHistory & {
-  // Today's 00:00 and the next 00:00 in the server's time zone (TZ)
+export type DayHistory = {
+  segments: Segment[];
+  // The day's 00:00 and the next 00:00 in the server's time zone (TZ)
   dayStart: number;
   dayEnd: number;
 };
 
-/** Today's connection history, from midnight to the moment of the fetch. */
-export async function getTodayHistory(): Promise<DayHistory> {
+export type DailyHistory = {
+  // Today first, then the days before it
+  days: DayHistory[];
+  fetchedAt: number;
+};
+
+/** The connection history of today and the `days - 1` days before it, from their midnight to the moment of the fetch. */
+export async function getDailyHistory(days: number): Promise<DailyHistory> {
   await connection();
   const fetchedAt = Date.now();
-  const start = new Date(fetchedAt);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  // Enough hours back to reach midnight
-  const hours = Math.max(1, Math.ceil((fetchedAt - start.getTime()) / 3_600_000));
+  const today = new Date(fetchedAt);
+  today.setHours(0, 0, 0, 0);
+  const starts = Array.from({ length: days }, (_, index) => {
+    const start = new Date(today);
+    start.setDate(start.getDate() - index);
+    return start;
+  });
+  const first = starts.at(-1)!.getTime();
+  // Enough hours back to reach the first midnight
+  const hours = Math.max(1, Math.ceil((fetchedAt - first) / 3_600_000));
+  const segments: Segment[] = await getJson(`/connection-history?hours=${hours}`);
   return {
-    segments: await getJson(`/connection-history?hours=${hours}`),
+    days: starts.map((start) => {
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      const dayStart = start.getTime();
+      const dayEnd = end.getTime();
+      return {
+        segments: segments.filter((segment) => Date.parse(segment.end) > dayStart && Date.parse(segment.start) < dayEnd),
+        dayStart,
+        dayEnd,
+      };
+    }),
     fetchedAt,
-    dayStart: start.getTime(),
-    dayEnd: end.getTime(),
   };
 }
 

@@ -23,7 +23,7 @@ export default function StatsPage({ searchParams }: PageProps<"/stats">) {
         <ConnectionStatusCard />
       </Suspense>
       <Suspense fallback={<ChartCardSkeleton height={150} />}>
-        <HistoryStats />
+        <HistoryStats searchParams={searchParams} />
       </Suspense>
       <Suspense fallback={<ChartCardSkeleton height={420} />}>
         <DeviceUsageStats searchParams={searchParams} />

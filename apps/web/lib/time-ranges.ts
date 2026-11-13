@@ -12,7 +12,19 @@ export const TIME_RANGES: TimeRange[] = [ONE_HOUR, SIX_HOURS, TWELVE_HOURS, ONE_
 
 export const DEFAULT_TIME_RANGE = ONE_DAY;
 
-export function parseTimeRange(value: string | string[] | undefined, ranges: TimeRange[]): TimeRange {
+// The online/offline card shows one bar per day, so it counts whole days back from today
+export const DAY_RANGES: TimeRange[] = [
+  { hours: 24, label: "1d", description: "Today" },
+  { hours: 72, label: "3d", description: "Today and the 2 days before" },
+  { hours: 168, label: "7d", description: "Today and the 6 days before" },
+  { hours: 360, label: "15d", description: "Today and the 14 days before" },
+];
+
+export function parseTimeRange(
+  value: string | string[] | undefined,
+  ranges: TimeRange[],
+  fallback: TimeRange = DEFAULT_TIME_RANGE,
+): TimeRange {
   const hours = Number(Array.isArray(value) ? value[0] : value);
-  return ranges.find((range) => range.hours === hours) ?? DEFAULT_TIME_RANGE;
+  return ranges.find((range) => range.hours === hours) ?? fallback;
 }

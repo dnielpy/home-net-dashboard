@@ -28,6 +28,18 @@ export function buildSpans(segments: Segment[], from: number, to: number): Timel
   return spans;
 }
 
+export function TimelineLegend() {
+  return (
+    <ChartLegend
+      items={[
+        { label: "Online", color: STATUS_COLORS.online },
+        { label: "Offline", color: STATUS_COLORS.offline },
+        { label: "No data", color: STATUS_COLORS.noData },
+      ]}
+    />
+  );
+}
+
 function spanLabel(span: TimelineSpan): string {
   if (span.online === null) return "No data";
   return span.online ? "Online" : `Offline · cut at ${hopLabel(span.break_at)}`;
@@ -38,20 +50,22 @@ function spanColor(span: TimelineSpan): string {
   return span.online ? STATUS_COLORS.online : STATUS_COLORS.offline;
 }
 
-export function ConnectionTimeline({ spans, from, to }: { spans: TimelineSpan[]; from: number; to: number }) {
+type ConnectionTimelineProps = {
+  spans: TimelineSpan[];
+  from: number;
+  to: number;
+  /** Hidden when several timelines stack and share one legend. */
+  legend?: boolean;
+};
+
+export function ConnectionTimeline({ spans, from, to, legend = true }: ConnectionTimelineProps) {
   const range = to - from;
   const percent = (t: number) => `${((t - from) / range) * 100}%`;
   const ticks = timeTicks(from, to, ASSUMED_WIDTH_PX);
 
   return (
     <div className="flex flex-col gap-3">
-      <ChartLegend
-        items={[
-          { label: "Online", color: STATUS_COLORS.online },
-          { label: "Offline", color: STATUS_COLORS.offline },
-          { label: "No data", color: STATUS_COLORS.noData },
-        ]}
-      />
+      {legend && <TimelineLegend />}
       <div className="relative">
         <ul aria-label="Connection timeline" className="relative h-10 overflow-visible rounded-md bg-zinc-100 dark:bg-zinc-800">
           {spans.map((span, index) => (

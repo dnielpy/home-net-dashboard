@@ -83,7 +83,7 @@ async def get_connection_status(session: AsyncSession = Depends(get_session)) ->
     ),
 )
 async def connection_history(
-    hours: float = Query(24, gt=0, le=168, description="How many hours back to include."),
+    hours: float = Query(24, gt=0, le=720, description="How many hours back to include."),
     session: AsyncSession = Depends(get_session),
 ) -> list[SegmentOut]:
     rows = await checks.list_states(session, _since(hours))
