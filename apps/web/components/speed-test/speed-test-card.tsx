@@ -10,11 +10,11 @@ type Result = Omit<Extract<SpeedTestEvent, { type: "result" }>, "type">;
 
 type TestState = { kind: "measuring"; mbps: number | null } | { kind: "done"; result: Result } | { kind: "error" };
 
-function formatSpeed(mbps: number): string {
+export function formatSpeed(mbps: number): string {
   return mbps >= 100 ? mbps.toFixed(0) : mbps.toFixed(1);
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
+export function InfoItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{label}</dt>
